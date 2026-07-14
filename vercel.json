@@ -2,7 +2,55 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/**/*.py",
+      "src": "api/register.py",
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.12",
+        "maxDuration": 10
+      }
+    },
+    {
+      "src": "api/admin/campaigns.py",
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.12",
+        "maxDuration": 10
+      }
+    },
+    {
+      "src": "api/admin/products.py",
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.12",
+        "maxDuration": 10
+      }
+    },
+    {
+      "src": "api/admin/campaign_products.py",
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.12",
+        "maxDuration": 10
+      }
+    },
+    {
+      "src": "api/admin/upload.py",
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.12",
+        "maxDuration": 10
+      }
+    },
+    {
+      "src": "api/admin/ugc.py",
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.12",
+        "maxDuration": 10
+      }
+    },
+    {
+      "src": "api/admin/registrations.py",
       "use": "@vercel/python",
       "config": {
         "runtime": "python3.12",
