@@ -1,26 +1,4 @@
 {
-  "_comment": [
-    "VEIMIA UGC Hub - Static + Serverless Hybrid Architecture",
-    "",
-    "Architecture overview:",
-    "  - Static assets (HTML/CSS/JS/JSON) are served from /public/ via Vercel CDN",
-    "  - Python serverless functions handle API logic (/api/*)",
-    "  - Admin API writes JSON config files directly to /public/config/",
-    "  - Campaign Page reads config from /config/campaigns/{id}.json (static)",
-    "  - Changes propagate immediately on next page load (no build/redeploy needed)",
-    "",
-    "Config propagation flow:",
-    "  1. Admin Panel -> POST/PUT /api/admin/* (serverless function)",
-    "  2. Serverless function writes JSON to /public/config/ (filesystem)",
-    "  3. Campaign Page fetches /config/campaigns/{id}.json (static file via CDN)",
-    "  4. Changes reflect on next page load (< 30 seconds with CDN cache)",
-    "",
-    "Route priority (first match wins):",
-    "  1. /api/* -> Python serverless functions",
-    "  2. /config/* -> Static JSON config files (campaigns, products)",
-    "  3. /admin/* -> Admin Panel static assets",
-    "  4. /* -> Campaign Page static assets (catch-all)"
-  ],
   "version": 2,
   "builds": [
     {
