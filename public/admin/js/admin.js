@@ -845,29 +845,16 @@ function adminApp() {
       // Clear error
       this.productFormErrors = { ...this.productFormErrors, imageUpload: '' };
 
-      // Upload via API
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const response = await fetch('/api/admin/upload', {
-          method: 'POST',
-          body: formData
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          this.productForm.product_image_url = data.url || data.image_url || '';
-          this.productFormErrors = { ...this.productFormErrors, product_image_url: '' };
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          this.productFormErrors = { ...this.productFormErrors, imageUpload: errorData.message || '이미지 업로드에 실패했습니다.' };
-        }
-      } catch (error) {
-        console.error('Image upload error:', error);
-        this.productFormErrors = { ...this.productFormErrors, imageUpload: '네트워크 오류가 발생했습니다.' };
-      }
-
+      // Convert to Base64 locally (no API needed)
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.productForm.product_image_url = e.target.result;
+        this.productFormErrors = { ...this.productFormErrors, product_image_url: '' };
+      };
+      reader.onerror = () => {
+        this.productFormErrors = { ...this.productFormErrors, imageUpload: '파일 읽기에 실패했습니다.' };
+      };
+      reader.readAsDataURL(file);
       event.target.value = '';
     },
 
