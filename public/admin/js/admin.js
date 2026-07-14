@@ -254,46 +254,66 @@ function adminApp() {
         return;
       }
 
-      // Build payload — skip base64 in hero_image_url for API (too large)
-      const heroUrl = this.newCampaign.hero_image_url || '';
-      const payload = {
+      // Build complete campaign object locally
+      const campaignId = 'campaign-' + Date.now();
+      const campaignData = {
+        campaign_id: campaignId,
         campaign_name: this.newCampaign.campaign_name.trim(),
         product_mode: this.newCampaign.product_mode,
         market: this.newCampaign.market.trim() || 'ko',
-        hero_image_url: heroUrl.startsWith('data:') ? '' : heroUrl.trim(),
+        hero_image_url: this.newCampaign.hero_image_url || '',
         introduction_text: this.newCampaign.introduction_text.trim() || '',
+        status: 'draft',
         start_date: this.newCampaign.start_date_local ? new Date(this.newCampaign.start_date_local).toISOString() : null,
-        end_date: this.newCampaign.end_date_local ? new Date(this.newCampaign.end_date_local).toISOString() : null
+        end_date: this.newCampaign.end_date_local ? new Date(this.newCampaign.end_date_local).toISOString() : null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        products: [],
+        ugc_gallery: []
       };
 
+      // Add to local list immediately (works without API)
+      this.campaigns.push(campaignData);
+
+      // Reset form and close modal
+      this.newCampaign = {
+        campaign_name: '',
+        product_mode: '',
+        market: 'ko',
+        hero_image_url: '',
+        introduction_text: '',
+        start_date_local: '',
+        end_date_local: ''
+      };
+      this.showCreateCampaign = false;
+
+      // Auto-download the JSON for deployment
+      const blob = new Blob([JSON.stringify(campaignData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = campaignId + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      this.statusMessage = '캠페인 생성 완료! JSON 파일을 config/campaigns/에 넣고 재배포하세요.';
+
+      // Also try API in background (best-effort, don't block)
       try {
-        const response = await fetch('/api/admin/campaigns', {
+        const apiPayload = { ...campaignData };
+        delete apiPayload.products;
+        delete apiPayload.ugc_gallery;
+        if (apiPayload.hero_image_url && apiPayload.hero_image_url.startsWith('data:')) {
+          apiPayload.hero_image_url = '';
+        }
+        fetch('/api/admin/campaigns', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-          // Reset form and close modal
-          this.newCampaign = {
-            campaign_name: '',
-            product_mode: '',
-            market: 'ko',
-            hero_image_url: '',
-            introduction_text: '',
-            start_date_local: '',
-            end_date_local: ''
-          };
-          this.showCreateCampaign = false;
-          await this.loadCampaigns();
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          this.createCampaignError = errorData.message || '캠페인 생성에 실패했습니다.';
-        }
-      } catch (error) {
-        console.error('Create campaign error:', error);
-        this.createCampaignError = '네트워크 오류가 발생했습니다.';
-      }
+          body: JSON.stringify(apiPayload)
+        }).catch(() => {});
+      } catch (e) {}
     },
 
     /**
