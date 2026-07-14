@@ -1,0 +1,27 @@
+# VEIMIA UGC Hub - Vercel Ignore File
+# 
+# NOTE: Do NOT exclude /public/config/ - these JSON files are the data layer
+# that connects Admin Panel saves to Campaign Page rendering.
+# The Admin API writes config here, and the Campaign Page reads from here.
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Test files (not needed in production)
+tests/
+.pytest_cache/
+
+# Development files
+.git/
+.gitignore
+*.md
+!public/**/*.md
+
+# IDE files
+.vscode/
+.idea/
+
+# Kiro spec files
+.kiro/

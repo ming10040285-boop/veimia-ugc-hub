@@ -1,0 +1,113 @@
+{
+  "_comment": [
+    "VEIMIA UGC Hub - Static + Serverless Hybrid Architecture",
+    "",
+    "Architecture overview:",
+    "  - Static assets (HTML/CSS/JS/JSON) are served from /public/ via Vercel CDN",
+    "  - Python serverless functions handle API logic (/api/*)",
+    "  - Admin API writes JSON config files directly to /public/config/",
+    "  - Campaign Page reads config from /config/campaigns/{id}.json (static)",
+    "  - Changes propagate immediately on next page load (no build/redeploy needed)",
+    "",
+    "Config propagation flow:",
+    "  1. Admin Panel -> POST/PUT /api/admin/* (serverless function)",
+    "  2. Serverless function writes JSON to /public/config/ (filesystem)",
+    "  3. Campaign Page fetches /config/campaigns/{id}.json (static file via CDN)",
+    "  4. Changes reflect on next page load (< 30 seconds with CDN cache)",
+    "",
+    "Route priority (first match wins):",
+    "  1. /api/* -> Python serverless functions",
+    "  2. /config/* -> Static JSON config files (campaigns, products)",
+    "  3. /admin/* -> Admin Panel static assets",
+    "  4. /* -> Campaign Page static assets (catch-all)"
+  ],
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.py",
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.12",
+        "maxDuration": 10
+      }
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/config/(.*)",
+      "dest": "/public/config/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=10, s-maxage=10, stale-while-revalidate=20"
+      }
+    },
+    {
+      "src": "/admin/(.*)",
+      "dest": "/public/admin/$1"
+    },
+    {
+      "src": "/uploads/(.*)",
+      "dest": "/public/uploads/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        }
+      ]
+    },
+    {
+      "source": "/config/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=10, s-maxage=10, stale-while-revalidate=20"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type"
+        }
+      ]
+    }
+  ]
+}

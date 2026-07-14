@@ -1,0 +1,149 @@
+{
+  "_schema": {
+    "description": "Campaign Configuration - defines a single campaign including assigned products and UGC gallery",
+    "version": "1.0.0",
+    "managed_by": "Admin API (/api/admin/campaigns)",
+    "field_constraints": {
+      "campaign_id": {
+        "type": "string",
+        "format": "UUID v4",
+        "required": true,
+        "description": "Unique campaign identifier"
+      },
+      "campaign_name": {
+        "type": "string",
+        "required": true,
+        "max_length": 200,
+        "description": "Human-readable campaign name"
+      },
+      "product_mode": {
+        "type": "string",
+        "required": true,
+        "enum": ["single", "multiple"],
+        "description": "Determines whether campaign offers one product or multiple products for selection"
+      },
+      "market": {
+        "type": "string",
+        "required": true,
+        "enum": ["ko", "ja", "en"],
+        "description": "Target market language code determining i18n resource file"
+      },
+      "hero_image_url": {
+        "type": "string (URI)",
+        "required": true,
+        "max_length": 2048,
+        "description": "Campaign hero/banner image URL (http/https only)"
+      },
+      "introduction_text": {
+        "type": "string",
+        "required": true,
+        "max_length": 2000,
+        "description": "Campaign introduction/description text"
+      },
+      "status": {
+        "type": "string",
+        "required": true,
+        "enum": ["draft", "published"],
+        "description": "Campaign publication status; must have products assigned before publishing"
+      },
+      "created_at": {
+        "type": "string",
+        "required": true,
+        "format": "ISO 8601 UTC (e.g. 2025-01-15T09:00:00Z)",
+        "description": "Campaign creation timestamp"
+      },
+      "updated_at": {
+        "type": "string",
+        "required": true,
+        "format": "ISO 8601 UTC (e.g. 2025-01-15T09:00:00Z)",
+        "description": "Last update timestamp"
+      },
+      "products": {
+        "type": "array of CampaignProduct",
+        "required": true,
+        "constraints": "1 item for single mode, 1-50 items for multiple mode",
+        "description": "Products assigned to this campaign with optional per-campaign overrides"
+      },
+      "ugc_gallery": {
+        "type": "array of UGCPost",
+        "required": true,
+        "constraints": "0-20 items",
+        "description": "Curated UGC posts displayed on campaign page"
+      }
+    },
+    "campaign_product_constraints": {
+      "product_id": { "type": "string", "required": true, "description": "References product_id in Product Library" },
+      "product_name": { "type": "string", "required": true, "max_length": 200 },
+      "product_image_url": { "type": "string (URI)", "required": true, "max_length": 2048, "scheme": "http|https" },
+      "short_description": { "type": "string", "required": true, "max_length": 500 },
+      "product_detail_url": { "type": "string | null", "required": false, "max_length": 2048, "scheme": "http|https" },
+      "size_guide_url": { "type": "string | null", "required": false, "max_length": 2048, "scheme": "http|https" },
+      "available_sizes": { "type": "string[]", "required": true, "min_items": 1, "max_items": 20 },
+      "available_colors": { "type": "string[]", "required": true, "min_items": 1, "max_items": 30 },
+      "status": { "type": "string", "required": true, "enum": ["open", "closed"] },
+      "display_order": { "type": "integer", "required": true, "min": 1, "max": 50 },
+      "override_product_image_url": { "type": "string | null", "description": "Overrides library product_image_url when non-null" },
+      "override_product_detail_url": { "type": "string | null", "description": "Overrides library product_detail_url when non-null" },
+      "override_size_guide_url": { "type": "string | null", "description": "Overrides library size_guide_url when non-null" },
+      "override_short_description": { "type": "string | null", "max_length": 500, "description": "Overrides library short_description when non-null" }
+    },
+    "ugc_post_constraints": {
+      "post_id": { "type": "string", "required": true, "format": "UUID v4" },
+      "image_url": { "type": "string (URI)", "required": true, "max_length": 2048, "scheme": "http|https" },
+      "source_url": { "type": "string | null", "required": false, "format": "Instagram post URL (https://www.instagram.com/p/...)" },
+      "display_order": { "type": "integer", "required": true, "min": 1, "max": 20 }
+    },
+    "override_resolution": "For fields with override support, resolved_value = override_value if override_value is not null, else product_library_default_value"
+  },
+  "campaign_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "campaign_name": "VEIMIA 여름 신상 란제리 컬렉션 UGC 캠페인",
+  "product_mode": "multiple",
+  "market": "ko",
+  "hero_image_url": "https://cdn.veimia.com/campaigns/summer2025/hero-banner.webp",
+  "introduction_text": "VEIMIA의 2025 여름 신상 란제리 컬렉션을 소개합니다! 이번 캠페인에서는 편안함과 스타일을 동시에 잡은 최신 란제리 제품들을 만나보실 수 있습니다. UGC 크리에이터로 선정되시면 제품을 무료로 제공받으시고, 여러분만의 스타일로 콘텐츠를 제작해 주세요.",
+  "status": "published",
+  "created_at": "2025-01-15T09:00:00Z",
+  "updated_at": "2025-01-20T14:30:00Z",
+  "products": [
+    {
+      "product_id": "prod-001",
+      "product_name": "VEIMIA 에어핏 노와이어 브라",
+      "product_image_url": "https://cdn.veimia.com/products/airfit-nowire-bra.webp",
+      "short_description": "가볍고 편안한 노와이어 디자인으로 하루 종일 편안하게 착용할 수 있는 에어핏 브라입니다. 통기성이 뛰어난 소재로 여름철에도 쾌적합니다.",
+      "product_detail_url": "https://www.veimia.com/ko/products/airfit-nowire-bra",
+      "size_guide_url": "https://www.veimia.com/ko/size-guide/bra",
+      "available_sizes": ["S", "M", "L", "XL", "2XL"],
+      "available_colors": ["아이보리", "블랙", "핑크", "라벤더", "스킨베이지"],
+      "status": "open",
+      "display_order": 1,
+      "override_product_image_url": null,
+      "override_product_detail_url": null,
+      "override_size_guide_url": null,
+      "override_short_description": null
+    },
+    {
+      "product_id": "prod-002",
+      "product_name": "VEIMIA 쿨링 레이스 브라렛",
+      "product_image_url": "https://cdn.veimia.com/products/cooling-lace-bralette.webp",
+      "short_description": "섬세한 레이스 디자인과 쿨링 소재의 만남. 가벼운 착용감으로 여름 데일리 속옷으로 완벽합니다.",
+      "product_detail_url": "https://www.veimia.com/ko/products/cooling-lace-bralette",
+      "size_guide_url": "https://www.veimia.com/ko/size-guide/bralette",
+      "available_sizes": ["XS", "S", "M", "L", "XL"],
+      "available_colors": ["화이트", "블랙", "누드핑크", "민트"],
+      "status": "open",
+      "display_order": 2,
+      "override_product_image_url": "https://cdn.veimia.com/campaigns/summer2025/cooling-bralette-special.webp",
+      "override_product_detail_url": null,
+      "override_size_guide_url": null,
+      "override_short_description": "캠페인 한정! 쿨링 레이스 브라렛으로 여름을 시원하게 보내세요."
+    }
+  ],
+  "ugc_gallery": [
+    {
+      "post_id": "ugc-001-a1b2c3d4",
+      "image_url": "https://cdn.veimia.com/ugc/summer2025/creator-post-001.webp",
+      "source_url": "https://www.instagram.com/p/ABC123example/",
+      "display_order": 1
+    }
+  ]
+}

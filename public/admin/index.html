@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VEIMIA UGC Hub Admin</title>
+  <link rel="stylesheet" href="css/admin.css">
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="js/admin.js" defer></script>
+</head>
+<body x-data="adminApp()" x-init="init()">
+
+  <!-- Header -->
+  <header class="admin-header">
+    <h1 class="admin-title">VEIMIA UGC Hub Admin</h1>
+    <div class="header-actions">
+      <span class="admin-status" x-text="statusMessage"></span>
+    </div>
+  </header>
+
+  <!-- Mobile Navigation (visible on small screens) -->
+  <nav class="mobile-nav">
+    <button
+      class="mobile-nav-btn"
+      :class="{ active: activeTab === 'campaigns' }"
+      @click="activeTab = 'campaigns'"
+    >캠페인</button>
+    <button
+      class="mobile-nav-btn"
+      :class="{ active: activeTab === 'products' }"
+      @click="activeTab = 'products'"
+    >상품</button>
+    <button
+      class="mobile-nav-btn"
+      :class="{ active: activeTab === 'ugc' }"
+      @click="activeTab = 'ugc'"
+    >UGC</button>
+    <button
+      class="mobile-nav-btn"
+      :class="{ active: activeTab === 'settings' }"
+      @click="activeTab = 'settings'"
+    >설정</button>
+  </nav>
+
+  <div class="admin-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="admin-sidebar">
+      <nav class="sidebar-nav">
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'campaigns' }"
+          @click="activeTab = 'campaigns'"
+        >
+          <span class="nav-icon">📋</span>
+          <span class="nav-label">캠페인</span>
+        </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'products' }"
+          @click="activeTab = 'products'"
+        >
+          <span class="nav-icon">🛍️</span>
+          <span class="nav-label">상품 관리</span>
+        </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'ugc' }"
+          @click="activeTab = 'ugc'"
+        >
+          <span class="nav-icon">📸</span>
+          <span class="nav-label">UGC 갤러리</span>
+        </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'settings' }"
+          @click="activeTab = 'settings'"
+        >
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">설정</span>
+        </button>
+      </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="admin-main">
+      <!-- Campaigns Tab -->
+      <section x-show="activeTab === 'campaigns'" class="tab-content">
+
+        <!-- Campaign List View -->
+        <template x-if="!editingCampaign">
+          <div>
+            <div class="content-header">
+              <h2>캠페인 관리</h2>
+              <button class="btn btn-primary" @click="showCreateCampaign = true">+ 새 캠페인</button>
+            </div>
+            <div class="content-body">
+              <!-- Empty state -->
+              <div class="card" x-show="campaigns.length === 0">
+                <p class="placeholder-text">캠페인이 없습니다. 새 캠페인을 만들어 보세요.</p>
+              </div>
+              <!-- Campaign list -->
+              <div class="campaign-list" x-show="campaigns.length > 0">
+                <template x-for="campaign in campaigns" :key="campaign.campaign_id">
+                  <div class="campaign-item" @click="openCampaignEdit(campaign)">
+                    <div class="campaign-item-info">
+                      <span class="campaign-item-name" x-text="campaign.campaign_name"></span>
+                      <div class="campaign-item-meta">
+                        <span class="badge" :class="campaign.product_mode === 'single' ? 'badge-single' : 'badge-multiple'" x-text="campaign.product_mode === 'single' ? '단일 상품' : '복수 상품'"></span>
+                        <span class="badge" :class="campaign.status === 'published' ? 'badge-published' : 'badge-draft'" x-text="campaign.status === 'published' ? '게시됨' : '초안'"></span>
+                        <span x-text="formatDate(campaign.created_at)"></span>
+                      </div>
+                    </div>
+                    <div class="campaign-item-actions">
+                      <button class="btn btn-sm" @click.stop="deleteCampaign(campaign.campaign_id)">삭제</button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Campaign Edit View -->
+        <template x-if="editingCampaign">
+          <div>
+            <div class="campaign-edit-header">
+              <h3 x-text="editingCampaign.campaign_name"></h3>
+              <div class="form-actions">
+                <button class="btn" @click="closeCampaignEdit()">← 목록으로</button>
+                <button class="btn btn-primary" @click="publishCampaign()">게시하기</button>
+              </div>
+            </div>
+
+            <!-- Campaign Config Section -->
+            <div class="card campaign-edit-section">
+              <h4>캠페인 설정</h4>
+              <div class="form-group">
+                <label>캠페인 이름</label>
+                <input type="text" x-model="editingCampaign.campaign_name" maxlength="200">
+              </div>
+              <div class="form-group">
+                <label>상품 모드</label>
+                <div class="radio-group">
+                  <label class="radio-option" :class="{ selected: editingCampaign.product_mode === 'single' }">
+                    <input type="radio" value="single" x-model="editingCampaign.product_mode" @change="onProductModeChange('single')">
+                    <span>단일 상품</span>
+                  </label>
+                  <label class="radio-option" :class="{ selected: editingCampaign.product_mode === 'multiple' }">
+                    <input type="radio" value="multiple" x-model="editingCampaign.product_mode" @change="onProductModeChange('multiple')">
+                    <span>복수 상품</span>
+                  </label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>마켓</label>
+                <input type="text" x-model="editingCampaign.market" placeholder="ko" maxlength="5">
+              </div>
+              <div class="form-group">
+                <label>히어로 이미지 URL</label>
+                <input type="url" x-model="editingCampaign.hero_image_url" placeholder="https://..." maxlength="2048">
+              </div>
+              <div class="form-group">
+                <label>소개 텍스트</label>
+                <textarea x-model="editingCampaign.introduction_text" maxlength="2000" rows="3"></textarea>
+              </div>
+              <div class="form-actions">
+                <button class="btn btn-primary" @click="saveCampaignConfig()">설정 저장</button>
+              </div>
+            </div>
+
+            <!-- Product Assignment Section -->
+            <div class="card campaign-edit-section">
+              <h4>상품 배정</h4>
+
+              <!-- Product mode info -->
+              <div class="info-message" x-show="editingCampaign.product_mode === 'single'" style="margin-bottom:12px;">
+                단일 상품 모드: 1개의 상품만 배정할 수 있습니다. 새 상품을 선택하면 기존 상품이 교체됩니다.
+              </div>
+              <div class="info-message" x-show="editingCampaign.product_mode === 'multiple'" style="margin-bottom:12px;">
+                복수 상품 모드: 1~50개의 상품을 배정할 수 있습니다. 드래그하여 순서를 변경할 수 있습니다.
+              </div>
+
+              <!-- Currently assigned products -->
+              <template x-if="assignedProducts.length > 0">
+                <div>
+                  <div class="product-count" :class="{ 'at-limit': assignedProducts.length >= 50 }">
+                    배정된 상품: <strong x-text="assignedProducts.length"></strong>
+                    <span x-show="editingCampaign.product_mode === 'multiple'"> / 50</span>
+                  </div>
+                  <div class="assigned-products">
+                    <template x-for="(prod, index) in assignedProducts" :key="prod.product_id">
+                      <div class="assigned-product-wrapper">
+                        <div
+                          class="assigned-product-item"
+                          :draggable="editingCampaign.product_mode === 'multiple'"
+                          @dragstart="dragStart(index)"
+                          @dragover.prevent="dragOver(index)"
+                          @dragend="dragEnd()"
+                          :class="{ 'dragging': dragIndex === index, 'drag-over': dragOverIndex === index }"
+                        >
+                          <span class="drag-handle" x-show="editingCampaign.product_mode === 'multiple'">⠿</span>
+                          <span class="product-name" x-text="prod.product_name || prod.product_id"></span>
+                          <span class="product-status-badge" :class="prod.status === 'open' ? 'status-open' : 'status-closed'" x-text="prod.status === 'open' ? '접수중' : '마감'"></span>
+                          <button class="btn btn-sm config-toggle-btn" @click="toggleProductConfig(index)" :title="prod._configExpanded ? '설정 접기' : '설정 펼치기'">
+                            <span x-text="prod._configExpanded ? '▲ 설정' : '▼ 설정'"></span>
+                          </button>
+                          <button class="remove-btn" @click="removeAssignedProduct(index)" title="제거">✕</button>
+                        </div>
+
+                        <!-- Expandable Product Configuration Panel -->
+                        <div class="product-config-panel" x-show="prod._configExpanded" x-transition>
+                          <!-- Status Toggle -->
+                          <div class="config-field">
+                            <label class="config-label">상품 상태</label>
+                            <div class="status-toggle">
+                              <label class="radio-option radio-option-sm" :class="{ selected: prod.status === 'open' }">
+                                <input type="radio" value="open" :name="'status-' + index" :checked="prod.status === 'open'" @change="toggleProductStatus(index, 'open')">
+                                <span>접수중 (open)</span>
+                              </label>
+                              <label class="radio-option radio-option-sm" :class="{ selected: prod.status === 'closed' }">
+                                <input type="radio" value="closed" :name="'status-' + index" :checked="prod.status === 'closed'" @change="toggleProductStatus(index, 'closed')">
+                                <span>마감 (closed)</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          <!-- Override: product_image_url -->
+                          <div class="config-field">
+                            <label class="config-label">상품 이미지 URL (오버라이드)</label>
+                            <div class="override-input-group">
+                              <input
+                                type="url"
+                                class="override-input"
+                                :value="prod.override_product_image_url || ''"
+                                @input="prod.override_product_image_url = $event.target.value || null"
+                                :placeholder="getLibraryDefault(prod.product_id, 'product_image_url') || '라이브러리 기본값 없음'"
+                                maxlength="2048"
+                              >
+                              <button
+                                class="btn btn-sm clear-override-btn"
+                                @click="clearOverride(index, 'override_product_image_url')"
+                                :disabled="!prod.override_product_image_url"
+                                title="기본값으로 되돌리기"
+                              >↺ 기본값</button>
+                            </div>
+                            <span class="override-hint" x-show="prod.override_product_image_url">오버라이드 적용됨</span>
+                          </div>
+
+                          <!-- Override: product_detail_url -->
+                          <div class="config-field">
+                            <label class="config-label">제품 상세 URL (오버라이드)</label>
+                            <div class="override-input-group">
+                              <input
+                                type="url"
+                                class="override-input"
+                                :value="prod.override_product_detail_url || ''"
+                                @input="prod.override_product_detail_url = $event.target.value || null"
+                                :placeholder="getLibraryDefault(prod.product_id, 'product_detail_url') || '라이브러리 기본값 없음'"
+                                maxlength="2048"
+                              >
+                              <button
+                                class="btn btn-sm clear-override-btn"
+                                @click="clearOverride(index, 'override_product_detail_url')"
+                                :disabled="!prod.override_product_detail_url"
+                                title="기본값으로 되돌리기"
+                              >↺ 기본값</button>
+                            </div>
+                            <span class="override-hint" x-show="prod.override_product_detail_url">오버라이드 적용됨</span>
+                          </div>
+
+                          <!-- Override: size_guide_url -->
+                          <div class="config-field">
+                            <label class="config-label">사이즈 가이드 URL (오버라이드)</label>
+                            <div class="override-input-group">
+                              <input
+                                type="url"
+                                class="override-input"
+                                :value="prod.override_size_guide_url || ''"
+                                @input="prod.override_size_guide_url = $event.target.value || null"
+                                :placeholder="getLibraryDefault(prod.product_id, 'size_guide_url') || '라이브러리 기본값 없음'"
+                                maxlength="2048"
+                              >
+                              <button
+                                class="btn btn-sm clear-override-btn"
+                                @click="clearOverride(index, 'override_size_guide_url')"
+                                :disabled="!prod.override_size_guide_url"
+                                title="기본값으로 되돌리기"
+                              >↺ 기본값</button>
+                            </div>
+                            <span class="override-hint" x-show="prod.override_size_guide_url">오버라이드 적용됨</span>
+                          </div>
+
+                          <!-- Override: short_description -->
+                          <div class="config-field">
+                            <label class="config-label">짧은 설명 (오버라이드)</label>
+                            <div class="override-input-group override-input-group-textarea">
+                              <textarea
+                                class="override-input override-textarea"
+                                :value="prod.override_short_description || ''"
+                                @input="prod.override_short_description = $event.target.value || null"
+                                :placeholder="getLibraryDefault(prod.product_id, 'short_description') || '라이브러리 기본값 없음'"
+                                maxlength="500"
+                                rows="2"
+                              ></textarea>
+                              <button
+                                class="btn btn-sm clear-override-btn"
+                                @click="clearOverride(index, 'override_short_description')"
+                                :disabled="!prod.override_short_description"
+                                title="기본값으로 되돌리기"
+                              >↺ 기본값</button>
+                            </div>
+                            <span class="override-hint" x-show="prod.override_short_description">오버라이드 적용됨</span>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Product Picker from Product_Library -->
+              <div class="product-assignment-area">
+                <h4 style="border:none; padding:0; margin-bottom:8px;">상품 라이브러리에서 선택</h4>
+
+                <!-- Empty library message -->
+                <div class="product-picker-empty" x-show="products.length === 0">
+                  상품 라이브러리가 비어 있습니다. 먼저 상품을 등록해 주세요.
+                </div>
+
+                <!-- Product list -->
+                <div class="product-picker-list" x-show="products.length > 0">
+                  <template x-for="product in products" :key="product.product_id">
+                    <div
+                      class="product-picker-item"
+                      :class="{ 'assigned': isProductAssigned(product.product_id) }"
+                      @click="toggleProductAssignment(product)"
+                    >
+                      <img
+                        class="product-picker-item-img"
+                        :src="product.product_image_url || ''"
+                        :alt="product.product_name"
+                        onerror="this.style.display='none'"
+                      >
+                      <div class="product-picker-item-info">
+                        <div class="product-picker-item-name" x-text="product.product_name"></div>
+                        <div class="product-picker-item-id" x-text="product.product_id"></div>
+                      </div>
+                      <div class="product-picker-item-check">
+                        <span x-show="isProductAssigned(product.product_id)">✓</span>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Save products -->
+              <div class="form-actions" style="margin-top:16px;">
+                <button class="btn btn-primary" @click="saveProductAssignment()">상품 배정 저장</button>
+              </div>
+
+              <!-- Error for publish with no products -->
+              <div class="error-message" x-show="campaignError" x-text="campaignError" style="margin-top:12px;"></div>
+              <div class="success-message" x-show="campaignSuccess" x-text="campaignSuccess" style="margin-top:12px;"></div>
+            </div>
+
+            <!-- Registration Status Section -->
+            <div class="card campaign-edit-section">
+              <div class="section-header" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;" @click="toggleRegistrations()">
+                <h4 style="margin:0;">신청 현황 <span x-show="registrationsCount > 0" x-text="'(' + registrationsCount + '건)'" style="font-size:0.85em; color:#666;"></span></h4>
+                <button class="btn btn-sm" x-text="showRegistrations ? '▲ 접기' : '▼ 펼치기'"></button>
+              </div>
+
+              <div x-show="showRegistrations" x-transition style="margin-top:12px;">
+                <!-- Loading indicator -->
+                <div x-show="registrationsLoading" style="padding:12px; text-align:center; color:#666;">
+                  로딩 중...
+                </div>
+
+                <!-- Warning message -->
+                <div class="info-message" x-show="registrationsWarning" x-text="registrationsWarning" style="margin-bottom:12px;"></div>
+
+                <!-- Empty state -->
+                <div x-show="!registrationsLoading && registrations.length === 0 && !registrationsWarning" style="padding:12px; text-align:center; color:#999;">
+                  신청 내역이 없습니다.
+                </div>
+
+                <!-- Registrations table -->
+                <div x-show="!registrationsLoading && registrations.length > 0" style="overflow-x:auto;">
+                  <table class="registrations-table" style="width:100%; border-collapse:collapse; font-size:0.85em;">
+                    <thead>
+                      <tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
+                        <th style="padding:8px 6px;">일시</th>
+                        <th style="padding:8px 6px;">상품</th>
+                        <th style="padding:8px 6px;">사이즈</th>
+                        <th style="padding:8px 6px;">컬러</th>
+                        <th style="padding:8px 6px;">인스타그램</th>
+                        <th style="padding:8px 6px;">이름</th>
+                        <th style="padding:8px 6px;">연락처</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="(reg, idx) in registrations" :key="idx">
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                          <td style="padding:6px; white-space:nowrap;" x-text="formatDate(reg.timestamp)"></td>
+                          <td style="padding:6px;" x-text="reg.product_id"></td>
+                          <td style="padding:6px;" x-text="reg.selected_size"></td>
+                          <td style="padding:6px;" x-text="reg.selected_color"></td>
+                          <td style="padding:6px;" x-text="reg.instagram_id"></td>
+                          <td style="padding:6px;" x-text="reg.name"></td>
+                          <td style="padding:6px;" x-text="reg.phone"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Refresh button -->
+                <div style="margin-top:12px; text-align:right;">
+                  <button class="btn btn-sm" @click="loadRegistrations(editingCampaign.campaign_id)" :disabled="registrationsLoading">새로고침</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Create Campaign Modal -->
+        <div class="modal-overlay" x-show="showCreateCampaign" @click.self="showCreateCampaign = false" style="display:none;" x-transition>
+          <div class="modal-content">
+            <h3>새 캠페인 만들기</h3>
+            <div class="form-group">
+              <label>캠페인 이름 <span class="required">*</span></label>
+              <input type="text" x-model="newCampaign.campaign_name" placeholder="캠페인 이름을 입력하세요" maxlength="200">
+            </div>
+            <div class="form-group">
+              <label>상품 모드 <span class="required">*</span></label>
+              <div class="radio-group">
+                <label class="radio-option" :class="{ selected: newCampaign.product_mode === 'single' }">
+                  <input type="radio" value="single" x-model="newCampaign.product_mode">
+                  <span>단일 상품</span>
+                </label>
+                <label class="radio-option" :class="{ selected: newCampaign.product_mode === 'multiple' }">
+                  <input type="radio" value="multiple" x-model="newCampaign.product_mode">
+                  <span>복수 상품</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>마켓</label>
+              <input type="text" x-model="newCampaign.market" placeholder="ko (기본값)" maxlength="5">
+            </div>
+            <div class="form-group">
+              <label>히어로 이미지 URL</label>
+              <input type="url" x-model="newCampaign.hero_image_url" placeholder="https://..." maxlength="2048">
+            </div>
+            <div class="form-group">
+              <label>소개 텍스트</label>
+              <textarea x-model="newCampaign.introduction_text" placeholder="캠페인 소개를 입력하세요" maxlength="2000" rows="3"></textarea>
+            </div>
+            <div class="error-message" x-show="createCampaignError" x-text="createCampaignError" style="margin-bottom:12px;"></div>
+            <div class="form-actions">
+              <button class="btn" @click="showCreateCampaign = false; createCampaignError = ''">취소</button>
+              <button class="btn btn-primary" @click="createCampaign()">생성</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Products Tab -->
+      <section x-show="activeTab === 'products'" class="tab-content">
+        <div class="content-header">
+          <h2>상품 라이브러리</h2>
+          <button class="btn btn-primary" @click="createProduct()">+ 새 상품</button>
+        </div>
+        <div class="content-body">
+          <!-- Empty state -->
+          <div class="card" x-show="products.length === 0">
+            <p class="placeholder-text">상품이 없습니다. 새 상품을 등록해 보세요.</p>
+          </div>
+          <!-- Product list -->
+          <div class="product-library-list" x-show="products.length > 0">
+            <template x-for="product in products" :key="product.product_id">
+              <div class="product-library-item" @click="editProduct(product)">
+                <img
+                  class="product-library-item-img"
+                  :src="product.product_image_url || ''"
+                  :alt="product.product_name"
+                  onerror="this.style.display='none'"
+                >
+                <div class="product-library-item-info">
+                  <span class="product-library-item-name" x-text="product.product_name"></span>
+                  <span class="product-library-item-id" x-text="product.product_id"></span>
+                  <span class="product-library-item-desc" x-text="product.short_description"></span>
+                </div>
+                <div class="product-library-item-meta">
+                  <span class="badge badge-single" x-text="(product.available_sizes || []).length + ' 사이즈'"></span>
+                  <span class="badge badge-multiple" x-text="(product.available_colors || []).length + ' 컬러'"></span>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Create/Edit Product Modal -->
+        <div class="modal-overlay" x-show="showCreateProduct" @click.self="closeProductModal()" style="display:none;" x-transition>
+          <div class="modal-content modal-content-lg">
+            <h3 x-text="productForm.isEditing ? '상품 수정' : '새 상품 등록'"></h3>
+
+            <!-- Product Name -->
+            <div class="form-group">
+              <label>상품 이름 <span class="required">*</span></label>
+              <input
+                type="text"
+                x-model="productForm.product_name"
+                placeholder="상품 이름을 입력하세요"
+                maxlength="200"
+                :class="{ 'input-error': productFormErrors.product_name }"
+              >
+              <span class="field-error" x-show="productFormErrors.product_name" x-text="productFormErrors.product_name"></span>
+              <span class="char-count" x-text="(productForm.product_name || '').length + '/200'"></span>
+            </div>
+
+            <!-- Product Image URL -->
+            <div class="form-group">
+              <label>상품 이미지 <span class="required">*</span></label>
+              <div class="image-upload-area">
+                <div class="image-preview" x-show="productForm.product_image_url">
+                  <img :src="productForm.product_image_url" alt="상품 이미지 미리보기" onerror="this.parentElement.style.display='none'">
+                </div>
+                <input
+                  type="url"
+                  x-model="productForm.product_image_url"
+                  placeholder="https://... 이미지 URL을 입력하거나 파일을 업로드하세요"
+                  maxlength="2048"
+                  :class="{ 'input-error': productFormErrors.product_image_url }"
+                >
+                <span class="field-error" x-show="productFormErrors.product_image_url" x-text="productFormErrors.product_image_url"></span>
+                <div class="image-upload-btn-group">
+                  <label class="btn btn-sm upload-btn">
+                    📎 파일 업로드
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      style="display:none;"
+                      @change="uploadProductImage($event)"
+                    >
+                  </label>
+                  <span class="upload-hint">PNG, JPG, WebP / 최대 5MB</span>
+                </div>
+                <span class="field-error" x-show="productFormErrors.imageUpload" x-text="productFormErrors.imageUpload"></span>
+              </div>
+            </div>
+
+            <!-- Product Detail URL -->
+            <div class="form-group">
+              <label>상품 상세 URL</label>
+              <input
+                type="url"
+                x-model="productForm.product_detail_url"
+                placeholder="https://..."
+                maxlength="2048"
+                :class="{ 'input-error': productFormErrors.product_detail_url }"
+                @blur="validateUrlField('product_detail_url')"
+              >
+              <span class="field-error" x-show="productFormErrors.product_detail_url" x-text="productFormErrors.product_detail_url"></span>
+            </div>
+
+            <!-- Size Guide URL -->
+            <div class="form-group">
+              <label>사이즈 가이드 URL</label>
+              <input
+                type="url"
+                x-model="productForm.size_guide_url"
+                placeholder="https://..."
+                maxlength="2048"
+                :class="{ 'input-error': productFormErrors.size_guide_url }"
+                @blur="validateUrlField('size_guide_url')"
+              >
+              <span class="field-error" x-show="productFormErrors.size_guide_url" x-text="productFormErrors.size_guide_url"></span>
+            </div>
+
+            <!-- Short Description -->
+            <div class="form-group">
+              <label>간단 설명 <span class="required">*</span></label>
+              <textarea
+                x-model="productForm.short_description"
+                placeholder="상품에 대한 간단한 설명을 입력하세요"
+                maxlength="500"
+                rows="3"
+                :class="{ 'input-error': productFormErrors.short_description }"
+              ></textarea>
+              <span class="field-error" x-show="productFormErrors.short_description" x-text="productFormErrors.short_description"></span>
+              <span class="char-count" x-text="(productForm.short_description || '').length + '/500'"></span>
+            </div>
+
+            <!-- Available Sizes -->
+            <div class="form-group">
+              <label>사이즈 옵션 <span class="required">*</span></label>
+              <div class="tag-input-area">
+                <div class="tag-list">
+                  <template x-for="(size, index) in productForm.available_sizes" :key="'size-'+index">
+                    <span class="tag">
+                      <span x-text="size"></span>
+                      <button class="tag-remove" @click="removeSize(index)">✕</button>
+                    </span>
+                  </template>
+                </div>
+                <div class="tag-input-row">
+                  <input
+                    type="text"
+                    x-model="productForm._newSize"
+                    placeholder="사이즈를 입력 후 Enter"
+                    @keydown.enter.prevent="addSize(productForm._newSize)"
+                    :class="{ 'input-error': productFormErrors.available_sizes }"
+                  >
+                  <button class="btn btn-sm" @click="addSize(productForm._newSize)">추가</button>
+                </div>
+                <div class="tag-meta">
+                  <span class="tag-count" :class="{ 'at-limit': productForm.available_sizes.length >= 20 }" x-text="productForm.available_sizes.length + '/20'"></span>
+                  <span class="field-error" x-show="productFormErrors.available_sizes" x-text="productFormErrors.available_sizes"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Available Colors -->
+            <div class="form-group">
+              <label>컬러 옵션 <span class="required">*</span></label>
+              <div class="tag-input-area">
+                <div class="tag-list">
+                  <template x-for="(color, index) in productForm.available_colors" :key="'color-'+index">
+                    <span class="tag tag-color">
+                      <span x-text="color"></span>
+                      <button class="tag-remove" @click="removeColor(index)">✕</button>
+                    </span>
+                  </template>
+                </div>
+                <div class="tag-input-row">
+                  <input
+                    type="text"
+                    x-model="productForm._newColor"
+                    placeholder="컬러를 입력 후 Enter"
+                    @keydown.enter.prevent="addColor(productForm._newColor)"
+                    :class="{ 'input-error': productFormErrors.available_colors }"
+                  >
+                  <button class="btn btn-sm" @click="addColor(productForm._newColor)">추가</button>
+                </div>
+                <div class="tag-meta">
+                  <span class="tag-count" :class="{ 'at-limit': productForm.available_colors.length >= 30 }" x-text="productForm.available_colors.length + '/30'"></span>
+                  <span class="field-error" x-show="productFormErrors.available_colors" x-text="productFormErrors.available_colors"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Error/Success messages -->
+            <div class="error-message" x-show="productFormErrors.general" x-text="productFormErrors.general" style="margin-bottom:12px;"></div>
+            <div class="success-message" x-show="productFormSuccess" x-text="productFormSuccess" style="margin-bottom:12px;"></div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+              <button class="btn" @click="closeProductModal()">취소</button>
+              <button class="btn btn-primary" @click="saveProduct()" x-text="productForm.isEditing ? '수정 저장' : '상품 등록'"></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- UGC Gallery Tab -->
+      <section x-show="activeTab === 'ugc'" class="tab-content">
+        <div class="content-header">
+          <h2>UGC 갤러리</h2>
+          <button
+            class="btn btn-primary"
+            @click="showAddUGC = true"
+            :disabled="!ugcSelectedCampaignId || ugcPosts.length >= 20"
+          >+ UGC 추가</button>
+        </div>
+        <div class="content-body">
+
+          <!-- Campaign Selector -->
+          <div class="card" style="margin-bottom: 16px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>캠페인 선택</label>
+              <select
+                x-model="ugcSelectedCampaignId"
+                @change="loadUGCForCampaign()"
+                class="ugc-campaign-select"
+              >
+                <option value="">-- 캠페인을 선택하세요 --</option>
+                <template x-for="campaign in campaigns" :key="campaign.campaign_id">
+                  <option :value="campaign.campaign_id" x-text="campaign.campaign_name"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+
+          <!-- No campaign selected message -->
+          <div class="card" x-show="!ugcSelectedCampaignId">
+            <p class="placeholder-text">캠페인을 선택하면 UGC 게시물이 표시됩니다.</p>
+          </div>
+
+          <!-- UGC Content (shown when campaign selected) -->
+          <template x-if="ugcSelectedCampaignId">
+            <div>
+              <!-- Post count indicator -->
+              <div class="ugc-post-count" :class="{ 'at-limit': ugcPosts.length >= 20 }">
+                <span x-text="ugcPosts.length + '/20'"></span> 게시물
+              </div>
+
+              <!-- Error/Success messages -->
+              <div class="error-message" x-show="ugcError" x-text="ugcError" style="margin-bottom: 12px;"></div>
+              <div class="success-message" x-show="ugcSuccess" x-text="ugcSuccess" style="margin-bottom: 12px;"></div>
+
+              <!-- Empty state -->
+              <div class="card" x-show="ugcPosts.length === 0">
+                <p class="placeholder-text">이 캠페인에 등록된 UGC 게시물이 없습니다. "+ UGC 추가" 버튼을 눌러 게시물을 추가하세요.</p>
+              </div>
+
+              <!-- UGC Posts Grid -->
+              <div class="ugc-grid" x-show="ugcPosts.length > 0">
+                <template x-for="(post, index) in ugcPosts" :key="post.post_id || post.id || index">
+                  <div
+                    class="ugc-grid-item"
+                    draggable="true"
+                    @dragstart="ugcDragStart(index)"
+                    @dragover.prevent="ugcDragOver(index)"
+                    @dragend="ugcDragEnd()"
+                    :class="{ 'dragging': ugcDragIndex === index, 'drag-over': ugcDragOverIndex === index }"
+                  >
+                    <div class="ugc-item-image">
+                      <img
+                        :src="post.image_url || ''"
+                        :alt="'UGC post ' + (index + 1)"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                      >
+                      <div class="ugc-item-placeholder" style="display:none;">
+                        <span>📷</span>
+                      </div>
+                    </div>
+                    <div class="ugc-item-actions">
+                      <a
+                        class="ugc-source-link"
+                        :href="post.source_url || '#'"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        x-show="post.source_url"
+                        title="Instagram에서 보기"
+                      >🔗</a>
+                      <button
+                        class="btn btn-sm ugc-move-btn"
+                        @click="moveUGCPostUp(index)"
+                        :disabled="index === 0"
+                        title="위로 이동"
+                      >↑</button>
+                      <button
+                        class="btn btn-sm ugc-move-btn"
+                        @click="moveUGCPostDown(index)"
+                        :disabled="index === ugcPosts.length - 1"
+                        title="아래로 이동"
+                      >↓</button>
+                      <button
+                        class="btn btn-sm ugc-remove-btn"
+                        @click="removeUGCPost(post.post_id || post.id)"
+                        title="삭제"
+                      >✕</button>
+                    </div>
+                    <div class="ugc-item-order" x-text="index + 1"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Add UGC Modal -->
+        <div class="modal-overlay" x-show="showAddUGC" @click.self="showAddUGC = false; ugcFormError = ''" style="display:none;" x-transition>
+          <div class="modal-content">
+            <h3>UGC 게시물 추가</h3>
+            <p class="modal-description">Instagram 게시물 URL 또는 이미지 URL을 입력하세요.</p>
+
+            <!-- Instagram URL -->
+            <div class="form-group">
+              <label>Instagram 게시물 URL</label>
+              <input
+                type="url"
+                x-model="newUGCPost.source_url"
+                placeholder="https://www.instagram.com/p/..."
+                maxlength="2048"
+              >
+              <span class="field-hint">https://www.instagram.com/p/ 또는 https://instagram.com/p/ 형식</span>
+            </div>
+
+            <!-- Image URL -->
+            <div class="form-group">
+              <label>이미지 URL</label>
+              <input
+                type="url"
+                x-model="newUGCPost.image_url"
+                placeholder="https://... 이미지 URL을 입력하세요"
+                maxlength="2048"
+              >
+            </div>
+
+            <!-- Error message -->
+            <div class="error-message" x-show="ugcFormError" x-text="ugcFormError" style="margin-bottom: 12px;"></div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+              <button class="btn" @click="showAddUGC = false; ugcFormError = ''; newUGCPost = { source_url: '', image_url: '' }">취소</button>
+              <button class="btn btn-primary" @click="addUGCPost()">추가</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings Tab -->
+      <section x-show="activeTab === 'settings'" class="tab-content">
+        <div class="content-header">
+          <h2>설정</h2>
+        </div>
+        <div class="content-body">
+          <div class="card">
+            <p class="placeholder-text">설정 옵션이 여기에 표시됩니다.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Mobile Preview Panel -->
+    <aside class="preview-panel">
+      <div class="preview-header">
+        <h3>모바일 미리보기</h3>
+        <button class="btn btn-sm" @click="refreshPreview()">새로고침</button>
+      </div>
+      <div class="preview-frame-container">
+        <iframe
+          :src="previewUrl"
+          class="preview-iframe"
+          title="캠페인 페이지 모바일 미리보기"
+          width="375"
+          sandbox="allow-scripts allow-same-origin"
+        ></iframe>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,64 @@
+{
+  "_schema": {
+    "description": "Product Library - central collection of all products available for assignment to campaigns",
+    "version": "1.0.0",
+    "managed_by": "Admin API (/api/admin/products)",
+    "product_fields": {
+      "product_id": {
+        "type": "string",
+        "required": true,
+        "description": "Unique product identifier",
+        "constraints": "Non-empty string, must be unique across all products"
+      },
+      "product_name": {
+        "type": "string",
+        "required": true,
+        "description": "Display name of the product",
+        "constraints": "Max 200 characters"
+      },
+      "product_image_url": {
+        "type": "string (URI)",
+        "required": true,
+        "description": "Default product image URL",
+        "constraints": "Valid http/https URL, max 2048 characters"
+      },
+      "product_detail_url": {
+        "type": "string | null",
+        "required": false,
+        "description": "URL to product detail page",
+        "constraints": "Valid http/https URL, max 2048 characters, or null if not configured"
+      },
+      "size_guide_url": {
+        "type": "string | null",
+        "required": false,
+        "description": "URL to size guide page",
+        "constraints": "Valid http/https URL, max 2048 characters, or null if not configured"
+      },
+      "short_description": {
+        "type": "string",
+        "required": true,
+        "description": "Brief product description used in campaign displays",
+        "constraints": "Max 500 characters"
+      },
+      "available_sizes": {
+        "type": "array of strings",
+        "required": true,
+        "description": "List of available size options for this product",
+        "constraints": "1-20 items, each item is a non-empty string"
+      },
+      "available_colors": {
+        "type": "array of strings",
+        "required": true,
+        "description": "List of available color options for this product",
+        "constraints": "1-30 items, each item is a non-empty string"
+      }
+    },
+    "url_validation_rules": {
+      "scheme": "Must be http or https only",
+      "max_length": 2048,
+      "admin_behavior": "Admin API rejects invalid URLs with INVALID_URL error code (HTTP 400)",
+      "frontend_behavior": "Buttons hidden for null, invalid scheme, or URLs exceeding 2048 chars"
+    }
+  },
+  "products": []
+}

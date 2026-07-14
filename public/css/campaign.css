@@ -1,0 +1,1313 @@
+/* ==========================================================================
+   VEIMIA UGC Hub - Campaign Page Styles
+   Mobile-first responsive layout (320px – 1440px)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   CSS Custom Properties
+   -------------------------------------------------------------------------- */
+:root {
+  --color-bg: #ffffff;
+  --color-text: #1a1a1a;
+  --color-text-secondary: #555555;
+  --color-border: #e0e0e0;
+  --color-primary: #2c2c2c;
+  --color-primary-hover: #444444;
+  --color-accent: #d4a574;
+  --color-error: #dc3545;
+  --color-success: #28a745;
+
+  --font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic',
+    'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+
+  --max-width: 1440px;
+  --touch-target: 44px;
+
+  --border-radius: 8px;
+  --transition: 0.2s ease;
+}
+
+/* --------------------------------------------------------------------------
+   Reset & Base
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-family);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* --------------------------------------------------------------------------
+   Campaign Page Layout
+   -------------------------------------------------------------------------- */
+.campaign-page {
+  width: 100%;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* --------------------------------------------------------------------------
+   Hero Section
+   -------------------------------------------------------------------------- */
+.campaign-hero {
+  width: 100%;
+  overflow: hidden;
+}
+
+.campaign-hero__image {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+/* --------------------------------------------------------------------------
+   Introduction Section
+   -------------------------------------------------------------------------- */
+.campaign-introduction {
+  padding: var(--spacing-lg) var(--spacing-md);
+}
+
+.campaign-introduction__content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.campaign-introduction__content p {
+  font-size: 0.938rem;
+  line-height: 1.8;
+  color: var(--color-text);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* --------------------------------------------------------------------------
+   Product Section
+   -------------------------------------------------------------------------- */
+.product-section {
+  padding: var(--spacing-lg) var(--spacing-md);
+}
+
+.product-section__container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* --------------------------------------------------------------------------
+   Single Product Display
+   -------------------------------------------------------------------------- */
+.single-product {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.single-product__image-wrapper {
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--border-radius);
+}
+
+.single-product__image {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+
+.single-product__info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.single-product__name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.single-product__id {
+  font-size: 0.813rem;
+  color: var(--color-text-secondary);
+  font-weight: 400;
+}
+
+.single-product__description {
+  font-size: 0.938rem;
+  color: var(--color-text);
+  line-height: 1.7;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.single-product__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.single-product__detail-btn,
+.single-product__size-guide-btn {
+  width: 100%;
+  text-align: center;
+}
+
+.single-product__prompt {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  padding: var(--spacing-sm) 0;
+}
+
+.single-product__select-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.single-product__select {
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-family: var(--font-family);
+  font-size: 1rem;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  transition: border-color var(--transition);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23555' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--spacing-md) center;
+}
+
+.single-product__select:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Form Section
+   -------------------------------------------------------------------------- */
+.form-section {
+  padding: var(--spacing-lg) var(--spacing-md);
+}
+
+.form-section__container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* --------------------------------------------------------------------------
+   UGC Gallery Section
+   -------------------------------------------------------------------------- */
+.ugc-gallery-section {
+  padding: var(--spacing-lg) var(--spacing-md);
+}
+
+.ugc-gallery-section__container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.ugc-gallery__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.ugc-gallery__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.ugc-gallery__item {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: var(--border-radius);
+  display: block;
+  text-decoration: none;
+  min-height: auto;
+  min-width: auto;
+}
+
+.ugc-gallery__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--border-radius);
+  transition: transform var(--transition), opacity var(--transition);
+}
+
+.ugc-gallery__item:hover .ugc-gallery__image {
+  transform: scale(1.05);
+  opacity: 0.9;
+}
+
+/* --------------------------------------------------------------------------
+   Touch Target Sizes (Mobile)
+   Ensures all interactive elements are at least 44x44px on mobile
+   -------------------------------------------------------------------------- */
+button,
+input,
+select,
+textarea,
+a,
+[role="button"] {
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+  width: var(--touch-target);
+  height: var(--touch-target);
+}
+
+button,
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+  font-family: var(--font-family);
+  font-size: 0.938rem;
+  font-weight: 500;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Common Button Styles
+   -------------------------------------------------------------------------- */
+.btn--primary {
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.btn--primary:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.btn--secondary {
+  background-color: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+
+.btn--secondary:hover {
+  background-color: #f5f5f5;
+}
+
+/* --------------------------------------------------------------------------
+   Form Element Base Styles
+   -------------------------------------------------------------------------- */
+input[type="text"],
+input[type="tel"],
+input[type="url"],
+input[type="email"],
+select,
+textarea {
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-family: var(--font-family);
+  font-size: 1rem;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  transition: border-color var(--transition);
+}
+
+input[type="text"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+input[type="email"]:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-primary);
+}
+
+label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-xs);
+}
+
+/* --------------------------------------------------------------------------
+   Utility: Loading State
+   -------------------------------------------------------------------------- */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.error-message {
+  padding: var(--spacing-lg);
+  text-align: center;
+  color: var(--color-error);
+  font-size: 0.875rem;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive: Tablet and above (≥768px)
+   -------------------------------------------------------------------------- */
+@media (min-width: 768px) {
+  .campaign-introduction {
+    padding: var(--spacing-xl) var(--spacing-lg);
+  }
+
+  .campaign-introduction__content p {
+    font-size: 1rem;
+  }
+
+  .product-section {
+    padding: var(--spacing-xl) var(--spacing-lg);
+  }
+
+  .form-section {
+    padding: var(--spacing-xl) var(--spacing-lg);
+  }
+
+  .ugc-gallery-section {
+    padding: var(--spacing-xl) var(--spacing-lg);
+  }
+
+  .ugc-gallery__grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md);
+  }
+
+  .ugc-gallery__title {
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-xl);
+  }
+
+  /* Single product responsive - tablet */
+  .single-product__actions {
+    flex-direction: row;
+    gap: var(--spacing-md);
+  }
+
+  .single-product__detail-btn,
+  .single-product__size-guide-btn {
+    width: auto;
+    flex: 1;
+  }
+
+  .single-product__name {
+    font-size: 1.5rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Responsive: Desktop (≥1024px)
+   -------------------------------------------------------------------------- */
+@media (min-width: 1024px) {
+  .campaign-introduction {
+    padding: var(--spacing-2xl) var(--spacing-xl);
+  }
+
+  .product-section {
+    padding: var(--spacing-2xl) var(--spacing-xl);
+  }
+
+  .form-section {
+    padding: var(--spacing-2xl) var(--spacing-xl);
+  }
+
+  .ugc-gallery-section {
+    padding: var(--spacing-2xl) var(--spacing-xl);
+  }
+
+  .ugc-gallery__grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-md);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Multiple Product Mode: Product Card Grid
+   -------------------------------------------------------------------------- */
+.multi-product {
+  width: 100%;
+}
+
+.multi-product__empty {
+  padding: var(--spacing-xl) var(--spacing-md);
+  text-align: center;
+}
+
+.multi-product__empty-message {
+  font-size: 0.938rem;
+  color: var(--color-text-secondary);
+}
+
+.product-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+  list-style: none;
+}
+
+.product-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  background-color: var(--color-bg);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.product-card:hover {
+  border-color: var(--color-primary);
+}
+
+.product-card--active {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.product-card__image-wrapper {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background-color: #f5f5f5;
+}
+
+.product-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-card__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: var(--spacing-sm);
+}
+
+.product-card__name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 4px;
+  line-height: 1.4;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.product-card__id {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.product-card__description {
+  font-size: 0.813rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--spacing-sm);
+  flex: 1;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.product-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: auto;
+}
+
+.product-card__detail-btn,
+.product-card__select-btn {
+  width: 100%;
+  font-size: 0.813rem;
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+/* --------------------------------------------------------------------------
+   Multiple Product Mode: Selection Prompt
+   -------------------------------------------------------------------------- */
+.multi-product__selection-prompt {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--color-error);
+  font-size: 0.875rem;
+  text-align: center;
+  background-color: #fef2f2;
+  border-radius: var(--border-radius);
+}
+
+/* --------------------------------------------------------------------------
+   Multiple Product Mode: Size/Color Options Area
+   -------------------------------------------------------------------------- */
+.multi-product-options {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.multi-product-options__prompt {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-align: center;
+}
+
+.multi-product-options__select-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.multi-product-options__select {
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-family: var(--font-family);
+  font-size: 1rem;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  transition: border-color var(--transition);
+}
+
+.multi-product-options__select:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive: Tablet and above (≥768px) — Product Cards
+   -------------------------------------------------------------------------- */
+@media (min-width: 768px) {
+  .product-card-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-lg);
+  }
+
+  .product-card__body {
+    padding: var(--spacing-md);
+  }
+
+  .product-card__name {
+    font-size: 0.938rem;
+  }
+
+  .product-card__description {
+    font-size: 0.875rem;
+  }
+
+  .product-card__actions {
+    flex-direction: row;
+    gap: var(--spacing-xs);
+  }
+
+  .product-card__detail-btn,
+  .product-card__select-btn {
+    flex: 1;
+    font-size: 0.875rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Responsive: Desktop (≥1024px) — Product Cards
+   -------------------------------------------------------------------------- */
+@media (min-width: 1024px) {
+  .product-card-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-xl);
+  }
+
+  .product-card__body {
+    padding: var(--spacing-lg);
+  }
+
+  .product-card__name {
+    font-size: 1rem;
+  }
+
+  .product-card__id {
+    font-size: 0.813rem;
+  }
+
+  .product-card__description {
+    font-size: 0.875rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Registration Form
+   -------------------------------------------------------------------------- */
+.registration-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-field label {
+  margin-bottom: 0;
+}
+
+.form-field input[type="text"],
+.form-field input[type="tel"] {
+  width: 100%;
+}
+
+.form-field__error {
+  display: block;
+  min-height: 1.2em;
+  font-size: 0.813rem;
+  color: var(--color-error);
+  line-height: 1.4;
+}
+
+/* Error state: red border on invalid fields */
+.form-field.field-error input[type="text"],
+.form-field.field-error input[type="tel"] {
+  border-color: var(--color-error);
+}
+
+.form-field.field-error .form-field__checkbox-text {
+  color: var(--color-error);
+}
+
+select.field-error {
+  border-color: var(--color-error);
+}
+
+/* Checkbox field */
+.form-field--checkbox {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) 0;
+}
+
+.form-field__checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  margin-bottom: 0;
+  font-weight: 400;
+}
+
+.form-field__checkbox-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  accent-color: var(--color-primary);
+}
+
+.form-field__checkbox-text {
+  font-size: 0.938rem;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+/* --------------------------------------------------------------------------
+   Radio Button Field (Member Type)
+   -------------------------------------------------------------------------- */
+.form-field--radio {
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  margin: 0;
+}
+
+.form-field--radio legend {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+  padding: 0 var(--spacing-xs);
+}
+
+.form-field__radio-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  padding: var(--spacing-xs) 0;
+  min-height: var(--touch-target);
+  font-weight: 400;
+  margin-bottom: 0;
+}
+
+.form-field__radio-label input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.form-field__radio-label span {
+  font-size: 0.938rem;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+/* Radio error state */
+.form-field--radio.field-error {
+  border-color: var(--color-error);
+}
+
+.form-field--radio.field-error legend {
+  color: var(--color-error);
+}
+
+/* Mobile touch target for radio buttons (≤767px) */
+@media (max-width: 767px) {
+  .form-field__radio-label {
+    min-height: var(--touch-target);
+    padding: var(--spacing-sm) 0;
+  }
+
+  .form-field__radio-label input[type="radio"] {
+    width: var(--touch-target);
+    height: var(--touch-target);
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+}
+
+/* Submit button full-width */
+.registration-form__submit {
+  width: 100%;
+  margin-top: var(--spacing-sm);
+}
+
+/* Form message (success / error) */
+.form-message {
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  font-size: 0.938rem;
+  text-align: center;
+  line-height: 1.6;
+  margin-top: var(--spacing-sm);
+}
+
+.form-message--success {
+  background-color: #f0fdf4;
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
+}
+
+.form-message--error {
+  background-color: #fef2f2;
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+/* --------------------------------------------------------------------------
+   Prevent horizontal scroll at any viewport width
+   -------------------------------------------------------------------------- */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+
+/* --------------------------------------------------------------------------
+   Product Detail Modal
+   -------------------------------------------------------------------------- */
+.product-detail-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+}
+
+.product-detail-modal__overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+
+.product-detail-modal__content {
+  position: relative;
+  background-color: var(--color-bg);
+  border-radius: var(--border-radius);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+  z-index: 1;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+}
+
+.product-detail-modal__close {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  width: var(--touch-target);
+  height: var(--touch-target);
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  font-size: 1.75rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background-color var(--transition), color var(--transition);
+  padding: 0;
+  line-height: 1;
+  z-index: 2;
+}
+
+.product-detail-modal__close:hover {
+  background-color: #f0f0f0;
+  color: var(--color-text);
+}
+
+.product-detail-modal__image-wrapper {
+  width: 100%;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  margin-bottom: var(--spacing-lg);
+}
+
+.product-detail-modal__image {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+
+.product-detail-modal__info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.product-detail-modal__name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.4;
+  margin: 0;
+  padding-right: var(--spacing-xl);
+}
+
+.product-detail-modal__id {
+  font-size: 0.813rem;
+  color: var(--color-text-secondary);
+  font-weight: 400;
+}
+
+.product-detail-modal__description {
+  font-size: 0.938rem;
+  color: var(--color-text);
+  line-height: 1.7;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  margin: 0;
+}
+
+.product-detail-modal__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.product-detail-modal__section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.product-detail-modal__tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.product-detail-modal__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px var(--spacing-sm);
+  font-size: 0.813rem;
+  color: var(--color-text);
+  background-color: #f5f5f5;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  min-height: auto;
+  min-width: auto;
+}
+
+.product-detail-modal__empty-info {
+  font-size: 0.813rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.product-detail-modal__external {
+  padding-top: var(--spacing-sm);
+}
+
+.product-detail-modal__external-link {
+  width: 100%;
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive: Mobile — Product Detail Modal (full-width)
+   -------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  .product-detail-modal {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .product-detail-modal__content {
+    max-width: 100%;
+    max-height: 95vh;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Responsive: Tablet and above (≥768px) — Product Detail Modal
+   -------------------------------------------------------------------------- */
+@media (min-width: 768px) {
+  .product-detail-modal__name {
+    font-size: 1.5rem;
+  }
+
+  .product-detail-modal__description {
+    font-size: 1rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Consent Section with Collapsible Detail Panel
+   Requirements: 14.1, 14.2, 14.6, 14.7
+   -------------------------------------------------------------------------- */
+.consent-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--spacing-sm) 0;
+}
+
+.consent-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.consent-section__checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  margin-bottom: 0;
+  font-weight: 400;
+}
+
+.consent-section__checkbox-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  accent-color: var(--color-primary);
+}
+
+.consent-section__checkbox-text {
+  font-size: 0.938rem;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+.consent-section__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 50%;
+  transition: background-color var(--transition);
+}
+
+.consent-section__toggle:hover {
+  background-color: #f0f0f0;
+}
+
+.consent-section__toggle-icon {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  line-height: 1;
+}
+
+.consent-section__details {
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  padding: 0 var(--spacing-sm);
+}
+
+.consent-section__details[aria-hidden="true"] {
+  max-height: 0 !important;
+}
+
+.consent-section__details p {
+  font-size: 0.813rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-sm);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.consent-section__details p:last-child {
+  margin-bottom: 0;
+}
+
+/* Error state for consent section */
+.consent-section.field-error .consent-section__checkbox-text {
+  color: var(--color-error);
+}
+
+/* Consent section error message (Requirement 14.5) */
+.consent-section .form-field__error {
+  display: block;
+  min-height: 1.2em;
+  font-size: 0.813rem;
+  color: var(--color-error);
+  line-height: 1.4;
+  padding-left: calc(20px + var(--spacing-sm));
+}
+
+/* Mobile touch target for consent checkbox (≤767px) — Requirement 14.3, 12.3 */
+@media (max-width: 767px) {
+  .consent-section__checkbox-label input[type="checkbox"] {
+    width: var(--touch-target);
+    height: var(--touch-target);
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   UGC Carousel (Auto-scrolling Gallery)
+   Requirements: 15.7, 12.1
+   -------------------------------------------------------------------------- */
+
+/* Carousel wrapper — clips overflow so no scrollbar is visible during animation */
+.ugc-carousel {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Flex track that gets translated via JS for infinite scroll animation.
+   will-change: transform enables GPU compositing for 60fps rendering. */
+.ugc-carousel-track {
+  display: flex;
+  gap: 12px;
+  will-change: transform;
+  /* No overflow on track itself; parent handles clipping */
+}
+
+/* Carousel images — fixed dimensions for consistent scroll speed calculation */
+.ugc-carousel__image {
+  flex-shrink: 0;
+  width: 200px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: var(--border-radius);
+  display: block;
+  /* Prevent layout shifts */
+  aspect-ratio: 1 / 1;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive: Tablet and above (≥768px) — Carousel images
+   -------------------------------------------------------------------------- */
+@media (min-width: 768px) {
+  .ugc-carousel__image {
+    width: 280px;
+    height: 280px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Responsive: Mobile (≤767px) — Carousel images scale proportionally
+   -------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  .ugc-carousel__image {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Reduced Motion Preference — Accessibility Fallback
+   Disables auto-scroll animation and provides manual scroll with snap points.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .ugc-carousel {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ugc-carousel-track {
+    will-change: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+  }
+
+  .ugc-carousel__image {
+    scroll-snap-align: start;
+  }
+
+  /* Hide scrollbar for cleaner UI while keeping scroll functional */
+  .ugc-carousel::-webkit-scrollbar,
+  .ugc-carousel-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ugc-carousel,
+  .ugc-carousel-track {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+
+/* --------------------------------------------------------------------------
+   Campaign Inactive (Expired / Not Started)
+   -------------------------------------------------------------------------- */
+.campaign-inactive {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl) var(--spacing-lg);
+  text-align: center;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--border-radius);
+  margin: var(--spacing-lg) var(--spacing-md);
+}
+
+.campaign-inactive__icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md);
+}
+
+.campaign-inactive__message {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-error);
+  line-height: 1.6;
+  margin: 0;
+}

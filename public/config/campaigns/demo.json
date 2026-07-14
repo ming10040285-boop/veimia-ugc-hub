@@ -1,0 +1,69 @@
+{
+  "campaign_id": "demo",
+  "campaign_name": "VEIMIA 여름 신상 란제리 컬렉션 UGC 캠페인",
+  "product_mode": "single",
+  "market": "ko",
+  "hero_image_url": "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&h=400&fit=crop",
+  "introduction_text": "VEIMIA의 2025 여름 신상 란제리 컬렉션을 소개합니다! UGC 크리에이터로 선정되시면 제품을 무료로 제공받으시고, 여러분만의 스타일로 콘텐츠를 제작해 주세요.",
+  "status": "published",
+  "start_date": "2025-01-01T00:00:00Z",
+  "end_date": "2025-12-31T23:59:59Z",
+  "created_at": "2025-01-15T09:00:00Z",
+  "updated_at": "2025-01-20T14:30:00Z",
+  "products": [
+    {
+      "product_id": "prod-001",
+      "product_name": "VEIMIA Air Fit 无钢圈文胸",
+      "product_image_url": "https://images.unsplash.com/photo-1616530940355-351fabd9524b?w=400&h=400&fit=crop",
+      "short_description": "这款 Air Fit 文胸采用轻盈舒适的无钢圈设计，可以全天舒适穿着。",
+      "product_detail_url": "https://www.veimia.com/ko/products/airfit-nowire-bra",
+      "size_guide_url": "https://www.veimia.com/ko/size-guide/bra",
+      "available_sizes": ["S", "M", "L", "XL", "2XL"],
+      "available_colors": ["아이보리", "블랙", "핑크", "라벤더", "스킨베이지"],
+      "status": "open",
+      "display_order": 1,
+      "override_product_image_url": null,
+      "override_product_detail_url": null,
+      "override_size_guide_url": null,
+      "override_short_description": null
+    }
+  ],
+  "ugc_gallery": [
+    {
+      "post_id": "ugc-001",
+      "image_url": "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=300&h=300&fit=crop",
+      "source_url": "https://www.instagram.com/p/example1/",
+      "display_order": 1
+    },
+    {
+      "post_id": "ugc-002",
+      "image_url": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=300&h=300&fit=crop",
+      "source_url": "https://www.instagram.com/p/example2/",
+      "display_order": 2
+    },
+    {
+      "post_id": "ugc-003",
+      "image_url": "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=300&h=300&fit=crop",
+      "source_url": "https://www.instagram.com/p/example3/",
+      "display_order": 3
+    },
+    {
+      "post_id": "ugc-004",
+      "image_url": "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=300&h=300&fit=crop",
+      "source_url": "https://www.instagram.com/p/example4/",
+      "display_order": 4
+    },
+    {
+      "post_id": "ugc-005",
+      "image_url": "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=300&h=300&fit=crop",
+      "source_url": "https://www.instagram.com/p/example5/",
+      "display_order": 5
+    },
+    {
+      "post_id": "ugc-006",
+      "image_url": "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=300&h=300&fit=crop",
+      "source_url": "https://www.instagram.com/p/example6/",
+      "display_order": 6
+    }
+  ]
+}
