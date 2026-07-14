@@ -511,35 +511,31 @@ function adminApp() {
       this.campaignError = '';
       this.campaignSuccess = '';
 
+      // Save locally
+      this.editingCampaign.updated_at = new Date().toISOString();
+      const idx = this.campaigns.findIndex(c => c.campaign_id === this.editingCampaign.campaign_id);
+      if (idx >= 0) {
+        this.campaigns[idx] = { ...this.editingCampaign, products: this.campaigns[idx].products };
+      }
+      this.campaignSuccess = '설정이 저장되었습니다. "📥 JSON 내보내기"로 파일을 다운로드하세요.';
+
+      // Try API in background
       try {
         const payload = {
           campaign_name: this.editingCampaign.campaign_name,
           product_mode: this.editingCampaign.product_mode,
           market: this.editingCampaign.market || 'ko',
-          hero_image_url: this.editingCampaign.hero_image_url || '',
+          hero_image_url: (this.editingCampaign.hero_image_url || '').startsWith('data:') ? '' : (this.editingCampaign.hero_image_url || ''),
           introduction_text: this.editingCampaign.introduction_text || '',
           start_date: this.editingCampaign.start_date || null,
           end_date: this.editingCampaign.end_date || null
         };
-
-        const response = await fetch(`/api/admin/campaigns/${this.editingCampaign.campaign_id}`, {
+        fetch(`/api/admin/campaigns/${this.editingCampaign.campaign_id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-          this.campaignSuccess = '캠페인 설정이 저장되었습니다.';
-          await this.loadCampaigns();
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          this.campaignError = errorData.message || '저장에 실패했습니다.';
-        }
-      } catch (error) {
-        console.error('Save campaign config error:', error);
-        // Fallback: show export hint for drag-deploy mode
-        this.campaignSuccess = '설정이 변경되었습니다. JSON 내보내기로 저장하세요.';
-      }
+        }).catch(() => {});
+      } catch (e) {}
     },
 
     /**
@@ -549,45 +545,41 @@ function adminApp() {
       this.campaignError = '';
       this.campaignSuccess = '';
 
+      // Save locally — update the editing campaign's products
+      this.editingCampaign.products = this.assignedProducts.map((p, i) => ({
+        product_id: p.product_id,
+        product_name: p.product_name,
+        product_image_url: p.product_image_url,
+        short_description: p.short_description,
+        product_detail_url: p.product_detail_url,
+        size_guide_url: p.size_guide_url,
+        available_sizes: p.available_sizes,
+        available_colors: p.available_colors,
+        status: p.status || 'open',
+        display_order: i + 1,
+        override_product_image_url: p.override_product_image_url || null,
+        override_product_detail_url: p.override_product_detail_url || null,
+        override_size_guide_url: p.override_size_guide_url || null,
+        override_short_description: p.override_short_description || null
+      }));
+
+      // Update in campaigns list
+      const idx = this.campaigns.findIndex(c => c.campaign_id === this.editingCampaign.campaign_id);
+      if (idx >= 0) {
+        this.campaigns[idx] = { ...this.editingCampaign };
+      }
+
+      this.campaignSuccess = '상품 배정이 저장되었습니다. "📥 JSON 내보내기"로 파일을 다운로드하세요.';
+
+      // Try API in background
       try {
-        const payload = {
-          products: this.assignedProducts.map((p, i) => ({
-            product_id: p.product_id,
-            product_name: p.product_name,
-            product_image_url: p.product_image_url,
-            short_description: p.short_description,
-            product_detail_url: p.product_detail_url,
-            size_guide_url: p.size_guide_url,
-            available_sizes: p.available_sizes,
-            available_colors: p.available_colors,
-            status: p.status || 'open',
-            display_order: i + 1,
-            override_product_image_url: p.override_product_image_url || null,
-            override_product_detail_url: p.override_product_detail_url || null,
-            override_size_guide_url: p.override_size_guide_url || null,
-            override_short_description: p.override_short_description || null
-          }))
-        };
-
-        const response = await fetch(
-          `/api/admin/campaign_products?campaign_id=${this.editingCampaign.campaign_id}`,
-          {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          }
-        );
-
-        if (response.ok) {
-          this.campaignSuccess = '상품 배정이 저장되었습니다.';
-          await this.loadCampaigns();
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          this.campaignError = errorData.message || '상품 배정 저장에 실패했습니다.';
-        }
-      } catch (error) {
-        console.error('Save product assignment error:', error);
-        this.campaignError = '네트워크 오류가 발생했습니다.';
+        const payload = { products: this.editingCampaign.products };
+        fetch(`/api/admin/campaign_products?campaign_id=${this.editingCampaign.campaign_id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+      } catch (e) {}
       }
     },
 
