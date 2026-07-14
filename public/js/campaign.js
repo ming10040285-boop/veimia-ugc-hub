@@ -58,6 +58,11 @@
       heroImage.src = config.hero_image_url;
       heroImage.alt = t('campaign_hero_alt');
     }
+    // Set hero title from campaign name
+    var heroTitle = document.getElementById('hero-title');
+    if (heroTitle && config.campaign_name) {
+      heroTitle.textContent = config.campaign_name;
+    }
   }
 
   /**
@@ -90,7 +95,9 @@
    */
   function isValidDisplayUrl(url) {
     if (!url) return false;
-    if (url.length > 2048) return false;
+    if (url.length > 2048 && !url.startsWith('data:')) return false;
+    // Allow Base64 data URLs (from local upload)
+    if (url.startsWith('data:image/')) return true;
     try {
       var parsed = new URL(url);
       return parsed.protocol === 'http:' || parsed.protocol === 'https:';
@@ -157,7 +164,7 @@
       html += '<a href="' + product.product_detail_url + '" target="_blank" rel="noopener noreferrer" class="btn btn--secondary single-product__detail-btn">' + t('product_detail_button') + '</a>';
     }
     if (showSizeGuideBtn) {
-      html += '<a href="' + product.size_guide_url + '" target="_blank" rel="noopener noreferrer" class="btn btn--secondary single-product__size-guide-btn">' + t('size_guide_button') + '</a>';
+      html += '<button type="button" class="btn btn--secondary single-product__size-guide-btn" onclick="Campaign.showSizeGuidePopup(\'' + product.size_guide_url.replace(/'/g, "\\'") + '\')">' + t('size_guide_button') + '</button>';
     }
     html += '</div>';
 
@@ -1308,6 +1315,46 @@
       });
   }
 
+  /**
+   * Shows a popup/modal with the size guide image.
+   * @param {string} imageUrl - The size guide image URL or Base64 data
+   */
+  function showSizeGuidePopup(imageUrl) {
+    if (!imageUrl) return;
+
+    // Remove existing modal if present
+    var existing = document.getElementById('size-guide-modal');
+    if (existing) existing.parentNode.removeChild(existing);
+
+    var html = '<div class="product-detail-modal" id="size-guide-modal" role="dialog" aria-modal="true" aria-label="사이즈 가이드">';
+    html += '<div class="product-detail-modal__overlay" data-action="close-sg"></div>';
+    html += '<div class="product-detail-modal__content" style="max-width:500px;padding:16px;">';
+    html += '<button type="button" class="product-detail-modal__close" data-action="close-sg" aria-label="닫기">&times;</button>';
+    html += '<h3 style="margin-bottom:12px;font-size:1.1rem;">' + t('size_guide_button') + '</h3>';
+    html += '<img src="' + imageUrl + '" alt="사이즈 가이드" style="width:100%;height:auto;border-radius:8px;">';
+    html += '</div></div>';
+
+    var el = document.createElement('div');
+    el.innerHTML = html;
+    var modal = el.firstChild;
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+
+    function closeModal() {
+      var m = document.getElementById('size-guide-modal');
+      if (m) m.parentNode.removeChild(m);
+      document.body.style.overflow = '';
+    }
+
+    modal.addEventListener('click', function(e) {
+      if (e.target.getAttribute('data-action') === 'close-sg') closeModal();
+    });
+
+    document.addEventListener('keydown', function handler(e) {
+      if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', handler); }
+    });
+  }
+
   // Export to global scope
   global.Campaign = {
     init: initCampaignPage,
@@ -1326,7 +1373,8 @@
     showProductDetail: showProductDetail,
     UGCCarousel: UGCCarousel,
     prefersReducedMotion: prefersReducedMotion,
-    checkCampaignTimeLimit: checkCampaignTimeLimit
+    checkCampaignTimeLimit: checkCampaignTimeLimit,
+    showSizeGuidePopup: showSizeGuidePopup
   };
 
   // Initialize on DOM ready

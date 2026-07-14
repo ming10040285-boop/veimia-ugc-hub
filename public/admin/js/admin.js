@@ -45,7 +45,9 @@ function adminApp() {
       product_mode: '',
       market: 'ko',
       hero_image_url: '',
-      introduction_text: ''
+      introduction_text: '',
+      start_date_local: '',
+      end_date_local: ''
     },
     createCampaignError: '',
     campaignError: '',
@@ -65,6 +67,7 @@ function adminApp() {
     async init() {
       this.statusMessage = '로딩 중...';
       try {
+        this.loadSettings();
         await this.loadCampaigns();
         await this.loadProducts();
         this.statusMessage = '준비 완료';
@@ -75,7 +78,8 @@ function adminApp() {
     },
 
     /**
-     * Load campaigns list from the admin API.
+     * Load campaigns list.
+     * Tries API first, falls back to loading known campaign configs directly.
      */
     async loadCampaigns() {
       try {
@@ -83,6 +87,20 @@ function adminApp() {
         if (response.ok) {
           const data = await response.json();
           this.campaigns = data.campaigns || [];
+          return;
+        }
+      } catch (error) {
+        // API not available (drag-deploy mode) — fall back to loading config files
+      }
+
+      // Fallback: try to load known campaign config directly
+      try {
+        const demoResp = await fetch('/config/campaigns/demo.json');
+        if (demoResp.ok) {
+          const demoData = await demoResp.json();
+          this.campaigns = [demoData];
+        } else {
+          this.campaigns = [];
         }
       } catch (error) {
         console.error('Failed to load campaigns:', error);
@@ -91,7 +109,8 @@ function adminApp() {
     },
 
     /**
-     * Load product library from the admin API.
+     * Load product library.
+     * Tries API first, falls back to loading products/library.json directly.
      */
     async loadProducts() {
       try {
@@ -99,6 +118,20 @@ function adminApp() {
         if (response.ok) {
           const data = await response.json();
           this.products = data.products || [];
+          return;
+        }
+      } catch (error) {
+        // API not available — fall back
+      }
+
+      // Fallback: load directly from config file
+      try {
+        const resp = await fetch('/config/products/library.json');
+        if (resp.ok) {
+          const data = await resp.json();
+          this.products = data.products || [];
+        } else {
+          this.products = [];
         }
       } catch (error) {
         console.error('Failed to load products:', error);
@@ -264,6 +297,19 @@ function adminApp() {
     openCampaignEdit(campaign) {
       this.editingCampaign = { ...campaign };
       this._previousProductMode = campaign.product_mode;
+      
+      // Convert ISO dates to datetime-local format for input fields
+      if (campaign.start_date) {
+        this.editingCampaign.start_date_local = campaign.start_date.slice(0, 16);
+      } else {
+        this.editingCampaign.start_date_local = '';
+      }
+      if (campaign.end_date) {
+        this.editingCampaign.end_date_local = campaign.end_date.slice(0, 16);
+      } else {
+        this.editingCampaign.end_date_local = '';
+      }
+
       // Ensure all assigned products have override fields and _configExpanded state
       this.assignedProducts = (campaign.products ? [...campaign.products] : []).map(p => ({
         ...p,
@@ -445,7 +491,9 @@ function adminApp() {
           product_mode: this.editingCampaign.product_mode,
           market: this.editingCampaign.market || 'ko',
           hero_image_url: this.editingCampaign.hero_image_url || '',
-          introduction_text: this.editingCampaign.introduction_text || ''
+          introduction_text: this.editingCampaign.introduction_text || '',
+          start_date: this.editingCampaign.start_date || null,
+          end_date: this.editingCampaign.end_date || null
         };
 
         const response = await fetch(`/api/admin/campaigns/${this.editingCampaign.campaign_id}`, {
@@ -463,7 +511,8 @@ function adminApp() {
         }
       } catch (error) {
         console.error('Save campaign config error:', error);
-        this.campaignError = '네트워크 오류가 발생했습니다.';
+        // Fallback: show export hint for drag-deploy mode
+        this.campaignSuccess = '설정이 변경되었습니다. JSON 내보내기로 저장하세요.';
       }
     },
 
@@ -732,7 +781,9 @@ function adminApp() {
      * @returns {boolean}
      */
     isValidUrl(url) {
-      if (!url || url.length > 2048) return false;
+      if (!url || (!url.startsWith('data:image/') && url.length > 2048)) return false;
+      // Allow Base64 data URLs (from local upload)
+      if (url.startsWith('data:image/')) return true;
       try {
         const parsed = new URL(url);
         return parsed.protocol === 'http:' || parsed.protocol === 'https:';
@@ -967,6 +1018,7 @@ function adminApp() {
 
     /**
      * Load UGC posts for the selected campaign in the UGC tab.
+     * Uses local config file (no backend API needed for drag-deploy mode).
      */
     async loadUGCForCampaign() {
       this.ugcError = '';
@@ -978,12 +1030,13 @@ function adminApp() {
       }
 
       try {
-        const response = await fetch(`/api/admin/ugc?campaign_id=${this.ugcSelectedCampaignId}`);
+        // Load directly from campaign config JSON (works without backend)
+        const response = await fetch(`/config/campaigns/${this.ugcSelectedCampaignId}.json`);
         if (response.ok) {
           const data = await response.json();
-          this.ugcPosts = data.posts || [];
+          this.ugcPosts = (data.ugc_gallery || []).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
         } else {
-          this.ugcError = 'UGC 게시물을 불러오는데 실패했습니다.';
+          this.ugcError = 'UGC 게시물을 불러오는데 실패했습니다. 캠페인 파일을 확인하세요.';
         }
       } catch (error) {
         console.error('Failed to load UGC posts:', error);
@@ -1007,8 +1060,9 @@ function adminApp() {
     },
 
     /**
-     * Add a UGC post to the selected campaign.
-     * Validates Instagram URL and enforces 20-post maximum.
+     * Add a UGC post to the local list.
+     * Works without backend API — adds to in-memory array.
+     * Use "Export JSON" to save changes to file.
      */
     async addUGCPost() {
       this.ugcFormError = '';
@@ -1018,9 +1072,9 @@ function adminApp() {
       const sourceUrl = (this.newUGCPost.source_url || '').trim();
       const imageUrl = (this.newUGCPost.image_url || '').trim();
 
-      // Validate: at least source_url or image_url must be provided
-      if (!sourceUrl && !imageUrl) {
-        this.ugcFormError = 'Instagram URL 또는 이미지 URL을 입력해 주세요.';
+      // Validate: at least image_url must be provided
+      if (!imageUrl) {
+        this.ugcFormError = '이미지 URL을 입력해 주세요.';
         return;
       }
 
@@ -1030,8 +1084,8 @@ function adminApp() {
         return;
       }
 
-      // Validate image_url format if provided
-      if (imageUrl && !this.isValidUrl(imageUrl)) {
+      // Validate image_url format
+      if (!this.isValidUrl(imageUrl)) {
         this.ugcFormError = 'http:// 또는 https://로 시작하는 유효한 이미지 URL을 입력하세요.';
         return;
       }
@@ -1042,43 +1096,22 @@ function adminApp() {
         return;
       }
 
-      try {
-        const payload = {
-          campaign_id: this.ugcSelectedCampaignId,
-          action: 'add',
-          source_url: sourceUrl || null,
-          image_url: imageUrl || null
-        };
+      // Add to local array (no API call)
+      const newPost = {
+        post_id: 'ugc-' + Date.now(),
+        image_url: imageUrl,
+        source_url: sourceUrl || null,
+        display_order: this.ugcPosts.length + 1
+      };
 
-        const response = await fetch('/api/admin/ugc', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-          this.newUGCPost = { source_url: '', image_url: '' };
-          this.showAddUGC = false;
-          this.ugcSuccess = 'UGC 게시물이 추가되었습니다.';
-          await this.loadUGCForCampaign();
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          if (errorData.message && errorData.message.toLowerCase().includes('unreachable')) {
-            this.ugcFormError = 'Instagram URL에 접근할 수 없습니다. URL을 확인해 주세요.';
-          } else if (errorData.message && errorData.message.toLowerCase().includes('invalid')) {
-            this.ugcFormError = '유효하지 않은 URL입니다. 다시 확인해 주세요.';
-          } else {
-            this.ugcFormError = errorData.message || 'UGC 게시물 추가에 실패했습니다.';
-          }
-        }
-      } catch (error) {
-        console.error('Add UGC post error:', error);
-        this.ugcFormError = '네트워크 오류가 발생했습니다.';
-      }
+      this.ugcPosts.push(newPost);
+      this.newUGCPost = { source_url: '', image_url: '' };
+      this.showAddUGC = false;
+      this.ugcSuccess = 'UGC 게시물이 추가되었습니다. "JSON 내보내기" 버튼으로 저장하세요.';
     },
 
     /**
-     * Remove a UGC post with confirmation.
+     * Remove a UGC post from the local list with confirmation.
      * @param {string} postId - The ID of the post to remove
      */
     async removeUGCPost(postId) {
@@ -1087,62 +1120,24 @@ function adminApp() {
       this.ugcError = '';
       this.ugcSuccess = '';
 
-      try {
-        const payload = {
-          campaign_id: this.ugcSelectedCampaignId,
-          action: 'remove',
-          post_id: postId
-        };
-
-        const response = await fetch('/api/admin/ugc', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-          this.ugcSuccess = 'UGC 게시물이 삭제되었습니다.';
-          await this.loadUGCForCampaign();
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          this.ugcError = errorData.message || '삭제에 실패했습니다.';
-        }
-      } catch (error) {
-        console.error('Remove UGC post error:', error);
-        this.ugcError = '네트워크 오류가 발생했습니다.';
-      }
+      // Remove from local array (no API call)
+      this.ugcPosts = this.ugcPosts.filter(p => (p.post_id || p.id) !== postId);
+      
+      // Update display_order
+      this.ugcPosts.forEach((p, i) => { p.display_order = i + 1; });
+      
+      this.ugcSuccess = 'UGC 게시물이 삭제되었습니다. "JSON 내보내기" 버튼으로 저장하세요.';
     },
 
     /**
-     * Reorder UGC posts - save the current order to the server.
+     * Update display_order after reorder (no API call in drag-deploy mode).
      */
     async reorderUGCPosts() {
       this.ugcError = '';
       this.ugcSuccess = '';
-
-      try {
-        const payload = {
-          campaign_id: this.ugcSelectedCampaignId,
-          action: 'reorder',
-          post_ids: this.ugcPosts.map(p => p.post_id || p.id)
-        };
-
-        const response = await fetch('/api/admin/ugc', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-          this.ugcSuccess = '순서가 저장되었습니다.';
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          this.ugcError = errorData.message || '순서 저장에 실패했습니다.';
-        }
-      } catch (error) {
-        console.error('Reorder UGC posts error:', error);
-        this.ugcError = '네트워크 오류가 발생했습니다.';
-      }
+      // Just update display_order in local array
+      this.ugcPosts.forEach((p, i) => { p.display_order = i + 1; });
+      this.ugcSuccess = '순서가 변경되었습니다. "JSON 내보내기" 버튼으로 저장하세요.';
     },
 
     // UGC Drag-to-Reorder
@@ -1189,6 +1184,306 @@ function adminApp() {
       this.ugcPosts.splice(index, 1);
       this.ugcPosts.splice(index + 1, 0, temp);
       this.reorderUGCPosts();
+    },
+
+    // =============================================
+    // Settings Management
+    // =============================================
+
+    settings: {
+      brand_name: 'VEIMIA',
+      brand_url: 'https://www.veimia.com',
+      logo_url: '',
+      brand_color: '#d4a574',
+      contact_email: '',
+      consent_purpose: '',
+      consent_data_types: '',
+      consent_retention: '',
+      consent_withdrawal: '',
+      version: '1.0.0',
+      deploy_url: 'https://veimia-ugc-hub.vercel.app',
+      sheets_connected: false,
+      sheets_id: ''
+    },
+    settingsSuccess: '',
+
+    /**
+     * Load settings from localStorage (persists across sessions in same browser)
+     */
+    loadSettings() {
+      try {
+        const saved = localStorage.getItem('veimia_ugc_settings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          this.settings = { ...this.settings, ...parsed };
+        }
+      } catch (e) {
+        console.error('Failed to load settings:', e);
+      }
+    },
+
+    /**
+     * Save settings to localStorage
+     */
+    saveSettings() {
+      this.settingsSuccess = '';
+      try {
+        localStorage.setItem('veimia_ugc_settings', JSON.stringify(this.settings));
+        this.settingsSuccess = '설정이 저장되었습니다.';
+        setTimeout(() => { this.settingsSuccess = ''; }, 3000);
+      } catch (e) {
+        console.error('Failed to save settings:', e);
+      }
+    },
+
+    /**
+     * Handle image upload for settings fields (logo etc)
+     * @param {Event} event
+     * @param {string} field - settings field to set
+     */
+    handleSettingsImageUpload(event, field) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const validTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+      if (!validTypes.includes(file.type)) return;
+      if (file.size > 2 * 1024 * 1024) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.settings[field] = e.target.result;
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+    },
+
+    /**
+     * Export the current editing campaign as a complete JSON file.
+     * Includes all config, products, and UGC gallery data.
+     * User can replace demo.json with this file and re-deploy.
+     */
+    exportCampaignJson() {
+      if (!this.editingCampaign) return;
+
+      const campaignData = {
+        campaign_id: this.editingCampaign.campaign_id,
+        campaign_name: this.editingCampaign.campaign_name,
+        product_mode: this.editingCampaign.product_mode,
+        market: this.editingCampaign.market || 'ko',
+        hero_image_url: this.editingCampaign.hero_image_url || '',
+        introduction_text: this.editingCampaign.introduction_text || '',
+        status: this.editingCampaign.status || 'published',
+        start_date: this.editingCampaign.start_date || null,
+        end_date: this.editingCampaign.end_date || null,
+        created_at: this.editingCampaign.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        products: this.assignedProducts.map((p, i) => ({
+          product_id: p.product_id,
+          product_name: p.product_name,
+          product_image_url: p.product_image_url,
+          short_description: p.short_description,
+          product_detail_url: p.product_detail_url || null,
+          size_guide_url: p.size_guide_url || null,
+          available_sizes: p.available_sizes || [],
+          available_colors: p.available_colors || [],
+          status: p.status || 'open',
+          display_order: i + 1,
+          override_product_image_url: p.override_product_image_url || null,
+          override_product_detail_url: p.override_product_detail_url || null,
+          override_size_guide_url: p.override_size_guide_url || null,
+          override_short_description: p.override_short_description || null
+        })),
+        ugc_gallery: (this.editingCampaign.ugc_gallery || []).map((p, i) => ({
+          post_id: p.post_id || ('ugc-' + (i + 1)),
+          image_url: p.image_url,
+          source_url: p.source_url || null,
+          display_order: i + 1
+        }))
+      };
+
+      const blob = new Blob([JSON.stringify(campaignData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (this.editingCampaign.campaign_id || 'campaign') + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      this.campaignSuccess = 'JSON 파일이 다운로드되었습니다. public/config/campaigns/ 폴더에 교체 후 재배포하세요.';
+    },
+
+    /**
+     * Export all campaign configs as a single JSON file
+     */
+    exportAllConfig() {
+      const allData = {
+        settings: this.settings,
+        campaigns: this.campaigns,
+        products: this.products,
+        exported_at: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'veimia-ugc-hub-config-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },
+
+    /**
+     * Export just the settings as JSON
+     */
+    exportSettings() {
+      const blob = new Blob([JSON.stringify(this.settings, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'veimia-settings.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },
+
+    // =============================================
+    // UGC Image Upload (Local File → Base64)
+    // =============================================
+
+    /**
+     * Handle local image file upload for UGC posts.
+     * Converts to Base64 Data URL (no backend needed).
+     * @param {Event} event - File input change event
+     */
+    handleUGCImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // Validate format
+      const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        this.ugcFormError = 'PNG, JPG, WebP 형식만 지원합니다.';
+        event.target.value = '';
+        return;
+      }
+
+      // Validate size (2MB max for Base64 embedding)
+      const maxSize = 2 * 1024 * 1024;
+      if (file.size > maxSize) {
+        this.ugcFormError = '파일 크기는 최대 2MB까지 허용됩니다.';
+        event.target.value = '';
+        return;
+      }
+
+      this.ugcFormError = '';
+
+      // Read as Base64 Data URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.newUGCPost.image_url = e.target.result;
+      };
+      reader.onerror = () => {
+        this.ugcFormError = '파일 읽기에 실패했습니다.';
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+    },
+
+    /**
+     * Handle local image file upload for hero image in campaign edit.
+     * Converts to Base64 Data URL.
+     * @param {Event} event - File input change event
+     */
+    handleHeroImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        this.campaignError = 'PNG, JPG, WebP 형식만 지원합니다.';
+        event.target.value = '';
+        return;
+      }
+
+      const maxSize = 2 * 1024 * 1024;
+      if (file.size > maxSize) {
+        this.campaignError = '파일 크기는 최대 2MB까지 허용됩니다.';
+        event.target.value = '';
+        return;
+      }
+
+      this.campaignError = '';
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.editingCampaign.hero_image_url = e.target.result;
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+    },
+
+    /**
+     * Handle hero image upload for the NEW campaign creation modal.
+     * @param {Event} event - File input change event
+     */
+    handleNewCampaignHeroUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        this.createCampaignError = 'PNG, JPG, WebP 형식만 지원합니다.';
+        event.target.value = '';
+        return;
+      }
+
+      const maxSize = 2 * 1024 * 1024;
+      if (file.size > maxSize) {
+        this.createCampaignError = '파일 크기는 최대 2MB까지 허용됩니다.';
+        event.target.value = '';
+        return;
+      }
+
+      this.createCampaignError = '';
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.newCampaign.hero_image_url = e.target.result;
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+    },
+
+    // =============================================
+    // UGC Export (Drag-Deploy Mode)
+    // =============================================
+
+    /**
+     * Export current UGC gallery as JSON file for download.
+     * User replaces demo.json ugc_gallery with this content and re-deploys.
+     */
+    exportUGCJson() {
+      const ugcData = this.ugcPosts.map((p, i) => ({
+        post_id: p.post_id || ('ugc-' + (i + 1)),
+        image_url: p.image_url,
+        source_url: p.source_url || null,
+        display_order: i + 1
+      }));
+
+      const jsonStr = JSON.stringify(ugcData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ugc_gallery_' + (this.ugcSelectedCampaignId || 'export') + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      this.ugcSuccess = 'JSON 파일이 다운로드되었습니다. demo.json의 ugc_gallery에 붙여넣기 후 재배포하세요.';
     },
 
     // =============================================

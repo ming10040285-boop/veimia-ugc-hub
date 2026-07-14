@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VEIMIA UGC Hub Admin</title>
   <link rel="stylesheet" href="css/admin.css">
-  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <script src="js/admin.js" defer></script>
+  <script src="js/admin.js"></script>
+  <script src="js/alpine.min.js" defer></script>
 </head>
 <body x-data="adminApp()" x-init="init()">
 
@@ -127,6 +127,7 @@
               <h3 x-text="editingCampaign.campaign_name"></h3>
               <div class="form-actions">
                 <button class="btn" @click="closeCampaignEdit()">← 목록으로</button>
+                <button class="btn" @click="exportCampaignJson()">📥 JSON 내보내기</button>
                 <button class="btn btn-primary" @click="publishCampaign()">게시하기</button>
               </div>
             </div>
@@ -156,12 +157,31 @@
                 <input type="text" x-model="editingCampaign.market" placeholder="ko" maxlength="5">
               </div>
               <div class="form-group">
-                <label>히어로 이미지 URL</label>
-                <input type="url" x-model="editingCampaign.hero_image_url" placeholder="https://..." maxlength="2048">
+                <label>히어로 이미지</label>
+                <div class="image-upload-area">
+                  <div class="image-preview" x-show="editingCampaign.hero_image_url">
+                    <img :src="editingCampaign.hero_image_url" alt="히어로 미리보기" style="max-width:100%;max-height:120px;border-radius:8px;" onerror="this.style.display='none'">
+                  </div>
+                  <label class="btn upload-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                    📎 이미지 업로드
+                    <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" @change="handleHeroImageUpload($event)">
+                  </label>
+                  <span class="upload-hint">PNG, JPG, WebP / 최대 2MB</span>
+                </div>
               </div>
               <div class="form-group">
                 <label>소개 텍스트</label>
                 <textarea x-model="editingCampaign.introduction_text" maxlength="2000" rows="3"></textarea>
+              </div>
+              <div class="form-group">
+                <label>활동 시작일</label>
+                <input type="datetime-local" x-model="editingCampaign.start_date_local" @change="editingCampaign.start_date = new Date($event.target.value).toISOString()">
+                <span class="field-hint" x-show="editingCampaign.start_date" x-text="'저장 값: ' + (editingCampaign.start_date || '')"></span>
+              </div>
+              <div class="form-group">
+                <label>활동 종료일</label>
+                <input type="datetime-local" x-model="editingCampaign.end_date_local" @change="editingCampaign.end_date = new Date($event.target.value).toISOString()">
+                <span class="field-hint" x-show="editingCampaign.end_date" x-text="'저장 값: ' + (editingCampaign.end_date || '')"></span>
               </div>
               <div class="form-actions">
                 <button class="btn btn-primary" @click="saveCampaignConfig()">설정 저장</button>
@@ -449,12 +469,29 @@
               <input type="text" x-model="newCampaign.market" placeholder="ko (기본값)" maxlength="5">
             </div>
             <div class="form-group">
-              <label>히어로 이미지 URL</label>
-              <input type="url" x-model="newCampaign.hero_image_url" placeholder="https://..." maxlength="2048">
+              <label>히어로 이미지</label>
+              <div class="image-upload-area">
+                <div class="image-preview" x-show="newCampaign.hero_image_url">
+                  <img :src="newCampaign.hero_image_url" alt="미리보기" style="max-width:100%;max-height:120px;border-radius:8px;" onerror="this.style.display='none'">
+                </div>
+                <label class="btn upload-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                  📎 이미지 업로드
+                  <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" @change="handleNewCampaignHeroUpload($event)">
+                </label>
+                <span class="upload-hint">PNG, JPG, WebP / 최대 2MB</span>
+              </div>
             </div>
             <div class="form-group">
               <label>소개 텍스트</label>
               <textarea x-model="newCampaign.introduction_text" placeholder="캠페인 소개를 입력하세요" maxlength="2000" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+              <label>활동 시작일</label>
+              <input type="datetime-local" x-model="newCampaign.start_date_local">
+            </div>
+            <div class="form-group">
+              <label>활동 종료일</label>
+              <input type="datetime-local" x-model="newCampaign.end_date_local">
             </div>
             <div class="error-message" x-show="createCampaignError" x-text="createCampaignError" style="margin-bottom:12px;"></div>
             <div class="form-actions">
@@ -668,11 +705,19 @@
       <section x-show="activeTab === 'ugc'" class="tab-content">
         <div class="content-header">
           <h2>UGC 갤러리</h2>
-          <button
-            class="btn btn-primary"
-            @click="showAddUGC = true"
-            :disabled="!ugcSelectedCampaignId || ugcPosts.length >= 20"
-          >+ UGC 추가</button>
+          <div style="display:flex;gap:8px;">
+            <button
+              class="btn"
+              @click="exportUGCJson()"
+              :disabled="!ugcSelectedCampaignId || ugcPosts.length === 0"
+              title="현재 UGC 목록을 JSON 파일로 다운로드"
+            >📥 JSON 내보내기</button>
+            <button
+              class="btn btn-primary"
+              @click="showAddUGC = true"
+              :disabled="!ugcSelectedCampaignId || ugcPosts.length >= 20"
+            >+ UGC 추가</button>
+          </div>
         </div>
         <div class="content-body">
 
@@ -775,29 +820,45 @@
         <div class="modal-overlay" x-show="showAddUGC" @click.self="showAddUGC = false; ugcFormError = ''" style="display:none;" x-transition>
           <div class="modal-content">
             <h3>UGC 게시물 추가</h3>
-            <p class="modal-description">Instagram 게시물 URL 또는 이미지 URL을 입력하세요.</p>
+            <p class="modal-description">이미지를 업로드하거나 URL을 입력하세요.</p>
+
+            <!-- Local Image Upload -->
+            <div class="form-group">
+              <label>이미지 업로드 (권장)</label>
+              <div class="image-upload-area">
+                <div class="image-preview" x-show="newUGCPost.image_url && newUGCPost.image_url.startsWith('data:')">
+                  <img :src="newUGCPost.image_url" alt="미리보기" style="max-width:200px;max-height:200px;border-radius:8px;">
+                </div>
+                <label class="btn upload-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                  📎 파일 선택
+                  <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" @change="handleUGCImageUpload($event)">
+                </label>
+                <span class="upload-hint">PNG, JPG, WebP / 최대 2MB</span>
+              </div>
+            </div>
+
+            <!-- Or: Image URL -->
+            <div class="form-group">
+              <label>또는 이미지 URL</label>
+              <input
+                type="url"
+                x-model="newUGCPost.image_url"
+                placeholder="https://... 이미지 URL"
+                maxlength="2048"
+                :disabled="newUGCPost.image_url && newUGCPost.image_url.startsWith('data:')"
+              >
+            </div>
 
             <!-- Instagram URL -->
             <div class="form-group">
-              <label>Instagram 게시물 URL</label>
+              <label>Instagram 게시물 URL (선택)</label>
               <input
                 type="url"
                 x-model="newUGCPost.source_url"
                 placeholder="https://www.instagram.com/p/..."
                 maxlength="2048"
               >
-              <span class="field-hint">https://www.instagram.com/p/ 또는 https://instagram.com/p/ 형식</span>
-            </div>
-
-            <!-- Image URL -->
-            <div class="form-group">
-              <label>이미지 URL</label>
-              <input
-                type="url"
-                x-model="newUGCPost.image_url"
-                placeholder="https://... 이미지 URL을 입력하세요"
-                maxlength="2048"
-              >
+              <span class="field-hint">https://www.instagram.com/p/ 형식</span>
             </div>
 
             <!-- Error message -->
@@ -816,11 +877,106 @@
       <section x-show="activeTab === 'settings'" class="tab-content">
         <div class="content-header">
           <h2>설정</h2>
+          <button class="btn btn-primary" @click="exportAllConfig()">📥 전체 설정 내보내기</button>
         </div>
         <div class="content-body">
-          <div class="card">
-            <p class="placeholder-text">설정 옵션이 여기에 표시됩니다.</p>
+
+          <!-- Brand Information -->
+          <div class="card settings-section">
+            <h4>🏷️ 브랜드 정보</h4>
+            <div class="form-group">
+              <label>브랜드명</label>
+              <input type="text" x-model="settings.brand_name" placeholder="VEIMIA">
+            </div>
+            <div class="form-group">
+              <label>브랜드 웹사이트 URL</label>
+              <input type="url" x-model="settings.brand_url" placeholder="https://www.veimia.com">
+            </div>
+            <div class="form-group">
+              <label>로고 이미지</label>
+              <div class="image-upload-area">
+                <div class="image-preview" x-show="settings.logo_url">
+                  <img :src="settings.logo_url" alt="로고 미리보기" style="max-height:60px;border-radius:4px;" onerror="this.style.display='none'">
+                </div>
+                <input type="url" x-model="settings.logo_url" placeholder="https://... 또는 파일 업로드">
+                <label class="btn btn-sm upload-btn" style="cursor:pointer;margin-top:6px;display:inline-flex;align-items:center;gap:4px;">
+                  📎 로고 업로드
+                  <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" @change="handleSettingsImageUpload($event, 'logo_url')">
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>브랜드 주색상</label>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <input type="color" x-model="settings.brand_color" style="width:50px;height:36px;border:none;cursor:pointer;">
+                <input type="text" x-model="settings.brand_color" placeholder="#d4a574" style="width:120px;">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>고객 문의 이메일</label>
+              <input type="email" x-model="settings.contact_email" placeholder="support@veimia.com">
+            </div>
           </div>
+
+          <!-- Consent Text Editor -->
+          <div class="card settings-section">
+            <h4>📝 동의 문구 편집</h4>
+            <div class="form-group">
+              <label>데이터 수집 목적</label>
+              <textarea x-model="settings.consent_purpose" rows="2" placeholder="본 정보는 제품 협업 신청 및 배송 목적으로만 수집됩니다."></textarea>
+            </div>
+            <div class="form-group">
+              <label>수집하는 정보 유형</label>
+              <textarea x-model="settings.consent_data_types" rows="2" placeholder="수집하는 정보: Instagram ID, 이름, 연락처..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>보관 기간</label>
+              <textarea x-model="settings.consent_retention" rows="2" placeholder="수집된 정보는 협업 완료 후 6개월간 보관됩니다."></textarea>
+            </div>
+            <div class="form-group">
+              <label>동의 철회 안내</label>
+              <textarea x-model="settings.consent_withdrawal" rows="2" placeholder="동의 철회를 원하시면 언제든지 고객센터에 요청하실 수 있습니다."></textarea>
+            </div>
+          </div>
+
+          <!-- Deployment Info -->
+          <div class="card settings-section">
+            <h4>🚀 배포 정보</h4>
+            <div class="settings-info-grid">
+              <div class="settings-info-item">
+                <span class="settings-info-label">프로젝트 버전</span>
+                <span class="settings-info-value" x-text="settings.version || '1.0.0'"></span>
+              </div>
+              <div class="settings-info-item">
+                <span class="settings-info-label">배포 URL</span>
+                <a :href="settings.deploy_url || 'https://veimia-ugc-hub.vercel.app'" target="_blank" rel="noopener" class="settings-info-link" x-text="settings.deploy_url || 'https://veimia-ugc-hub.vercel.app'"></a>
+              </div>
+              <div class="settings-info-item">
+                <span class="settings-info-label">Google Sheets 연결</span>
+                <span class="settings-info-value" :class="settings.sheets_connected ? 'status-open' : 'status-closed'" x-text="settings.sheets_connected ? '연결됨' : '미연결 (드래그 배포 모드)'"></span>
+              </div>
+              <div class="settings-info-item">
+                <span class="settings-info-label">Sheets ID</span>
+                <input type="text" x-model="settings.sheets_id" placeholder="스프레드시트 ID" style="font-size:0.85em;">
+              </div>
+            </div>
+          </div>
+
+          <!-- Data Export -->
+          <div class="card settings-section">
+            <h4>📊 데이터 내보내기</h4>
+            <div class="settings-export-grid">
+              <button class="btn" @click="exportAllConfig()">📥 전체 캠페인 설정 JSON</button>
+              <button class="btn" @click="exportSettings()">📥 환경 설정 JSON</button>
+            </div>
+          </div>
+
+          <!-- Save Settings -->
+          <div class="form-actions" style="margin-top:16px;">
+            <button class="btn btn-primary" @click="saveSettings()">설정 저장</button>
+            <span class="success-message" x-show="settingsSuccess" x-text="settingsSuccess" style="margin-left:12px;"></span>
+          </div>
+
         </div>
       </section>
     </main>

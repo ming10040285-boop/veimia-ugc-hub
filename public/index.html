@@ -5,42 +5,77 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VEIMIA UGC Brand Collaboration Hub</title>
   <link rel="stylesheet" href="/css/campaign.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 </head>
 <body>
+
+  <!-- Top Navigation Bar -->
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a href="https://veimia.co.kr/" target="_blank" rel="noopener noreferrer" class="site-header__logo-link">
+        <img src="/uploads/logo.png.png" alt="Veimia" class="site-header__logo">
+      </a>
+      <nav class="site-header__nav">
+        <a href="https://veimia.co.kr/" target="_blank" rel="noopener noreferrer" class="site-header__nav-link">공식 사이트</a>
+      </nav>
+    </div>
+  </header>
+
   <div class="campaign-page">
-    <!-- Hero Section -->
+    <!-- Hero Section with Overlay -->
     <section id="campaign-hero" class="campaign-hero" aria-label="캠페인 히어로 이미지">
-      <img id="hero-image" class="campaign-hero__image" src="" alt="캠페인 이미지">
+      <img id="hero-image" class="campaign-hero__image" src="" alt="" onerror="this.style.display='none'">
+      <div class="campaign-hero__overlay">
+        <h1 class="campaign-hero__title" id="hero-title"></h1>
+        <p class="campaign-hero__subtitle">자신의 모든 순간을 사랑하자</p>
+      </div>
     </section>
 
     <!-- Introduction Section -->
     <section id="campaign-introduction" class="campaign-introduction" aria-label="캠페인 소개">
       <div class="campaign-introduction__content">
+        <div class="section-badge">✨ About This Campaign</div>
         <p id="introduction-text"></p>
       </div>
     </section>
 
     <!-- Product Section -->
     <section id="product-section" class="product-section" aria-label="상품 섹션">
+      <div class="section-badge">🛍️ Products</div>
       <div id="product-container" class="product-section__container">
-        <!-- Populated by campaign.js based on product_mode -->
       </div>
     </section>
 
     <!-- Registration Form Section -->
     <section id="form-section" class="form-section" aria-label="신청 폼">
+      <div class="section-badge">📝 Apply Now</div>
       <div id="form-container" class="form-section__container">
-        <!-- Populated by task 6.6 -->
       </div>
     </section>
 
     <!-- UGC Gallery Section -->
     <section id="ugc-gallery-section" class="ugc-gallery-section" aria-label="UGC 갤러리">
       <div id="ugc-gallery-container" class="ugc-gallery-section__container">
-        <!-- Populated by task 6.7 -->
       </div>
     </section>
   </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <img src="/uploads/logo.png.png" alt="Veimia" class="site-footer__logo">
+        <p class="site-footer__slogan">자신의 모든 순간을 사랑하자</p>
+      </div>
+      <div class="site-footer__links">
+        <a href="https://veimia.co.kr/" target="_blank" rel="noopener noreferrer">공식 사이트</a>
+        <a href="https://www.instagram.com/veimia_korea/" target="_blank" rel="noopener noreferrer">Instagram</a>
+      </div>
+      <p class="site-footer__copyright">© 2025 VEIMIA. All rights reserved.</p>
+    </div>
+  </footer>
 
   <!-- Scripts -->
   <script src="/js/i18n.js"></script>

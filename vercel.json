@@ -1,138 +1,17 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/register.py",
-      "use": "@vercel/python",
-      "config": {
-        "runtime": "python3.12",
-        "maxDuration": 10
-      }
-    },
-    {
-      "src": "api/admin/campaigns.py",
-      "use": "@vercel/python",
-      "config": {
-        "runtime": "python3.12",
-        "maxDuration": 10
-      }
-    },
-    {
-      "src": "api/admin/products.py",
-      "use": "@vercel/python",
-      "config": {
-        "runtime": "python3.12",
-        "maxDuration": 10
-      }
-    },
-    {
-      "src": "api/admin/campaign_products.py",
-      "use": "@vercel/python",
-      "config": {
-        "runtime": "python3.12",
-        "maxDuration": 10
-      }
-    },
-    {
-      "src": "api/admin/upload.py",
-      "use": "@vercel/python",
-      "config": {
-        "runtime": "python3.12",
-        "maxDuration": 10
-      }
-    },
-    {
-      "src": "api/admin/ugc.py",
-      "use": "@vercel/python",
-      "config": {
-        "runtime": "python3.12",
-        "maxDuration": 10
-      }
-    },
-    {
-      "src": "api/admin/registrations.py",
-      "use": "@vercel/python",
-      "config": {
-        "runtime": "python3.12",
-        "maxDuration": 10
-      }
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/config/(.*)",
-      "dest": "/public/config/$1",
-      "headers": {
-        "Cache-Control": "public, max-age=10, s-maxage=10, stale-while-revalidate=20"
-      }
-    },
-    {
-      "src": "/admin/(.*)",
-      "dest": "/public/admin/$1"
-    },
-    {
-      "src": "/uploads/(.*)",
-      "dest": "/public/uploads/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/public/$1"
-    }
+  "rewrites": [
+    { "source": "/config/(.*)", "destination": "/config/$1" },
+    { "source": "/admin/(.*)", "destination": "/admin/$1" },
+    { "source": "/uploads/(.*)", "destination": "/uploads/$1" }
   ],
   "headers": [
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "Strict-Transport-Security",
-          "value": "max-age=63072000; includeSubDomains; preload"
-        }
-      ]
-    },
-    {
-      "source": "/config/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=10, s-maxage=10, stale-while-revalidate=20"
-        },
-        {
-          "key": "Content-Type",
-          "value": "application/json; charset=utf-8"
-        }
-      ]
-    },
-    {
       "source": "/api/(.*)",
       "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, PUT, DELETE, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type"
-        }
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
       ]
     }
   ]

@@ -103,9 +103,12 @@ def _list_campaigns():
 
 
 def _validate_url(url):
-    """Validate URL is http/https and within length limit."""
+    """Validate URL is http/https or base64 data URL, within length limit."""
     if not url:
         return True  # Optional field
+    # Allow Base64 data URLs (from local image upload)
+    if url.startswith("data:image/"):
+        return True
     if len(url) > MAX_HERO_IMAGE_URL_LENGTH:
         return False
     try:
