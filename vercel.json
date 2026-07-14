@@ -1,9 +1,16 @@
 {
   "version": 2,
+  "functions": {
+    "api/register.py": { "runtime": "@vercel/python", "maxDuration": 10 },
+    "api/admin/campaigns.py": { "runtime": "@vercel/python", "maxDuration": 10 },
+    "api/admin/products.py": { "runtime": "@vercel/python", "maxDuration": 10 },
+    "api/admin/campaign_products.py": { "runtime": "@vercel/python", "maxDuration": 10 },
+    "api/admin/upload.py": { "runtime": "@vercel/python", "maxDuration": 10 },
+    "api/admin/ugc.py": { "runtime": "@vercel/python", "maxDuration": 10 },
+    "api/admin/registrations.py": { "runtime": "@vercel/python", "maxDuration": 10 }
+  },
   "rewrites": [
-    { "source": "/config/(.*)", "destination": "/config/$1" },
-    { "source": "/admin/(.*)", "destination": "/admin/$1" },
-    { "source": "/uploads/(.*)", "destination": "/uploads/$1" }
+    { "source": "/api/(.*)", "destination": "/api/$1" }
   ],
   "headers": [
     {

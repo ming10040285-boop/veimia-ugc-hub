@@ -4,11 +4,47 @@ import logging
 import os
 import sys
 import time
+import threading
+import ctypes
+from functools import wraps
 from datetime import datetime, timezone
 
-# Add parent directory to path for utils import
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from utils.timeout import function_timeout, FunctionTimeoutError
+
+# ============================================================
+# Timeout utility (inlined to avoid Vercel treating utils/ as functions)
+# ============================================================
+
+class FunctionTimeoutError(Exception):
+    def __init__(self, seconds=None):
+        self.seconds = seconds
+        msg = f"Function execution timed out after {seconds}s" if seconds else "Function execution timed out"
+        super().__init__(msg)
+
+
+class function_timeout:
+    def __init__(self, seconds=9):
+        self.seconds = seconds
+        self._timer = None
+        self._target_thread_id = None
+
+    def _on_timeout(self):
+        if self._target_thread_id is not None:
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                ctypes.c_ulong(self._target_thread_id),
+                ctypes.py_object(FunctionTimeoutError)
+            )
+
+    def __enter__(self):
+        self._target_thread_id = threading.current_thread().ident
+        self._timer = threading.Timer(self.seconds, self._on_timeout)
+        self._timer.daemon = True
+        self._timer.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._timer:
+            self._timer.cancel()
+        return False
 
 try:
     import gspread
