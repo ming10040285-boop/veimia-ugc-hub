@@ -1,10 +1,18 @@
 {
   "version": 2,
-  "functions": {
-    "api/**/*.py": { "maxDuration": 10 }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+  "builds": [
+    { "src": "api/register.py", "use": "@vercel/python" },
+    { "src": "api/admin/campaigns.py", "use": "@vercel/python" },
+    { "src": "api/admin/products.py", "use": "@vercel/python" },
+    { "src": "api/admin/campaign_products.py", "use": "@vercel/python" },
+    { "src": "api/admin/upload.py", "use": "@vercel/python" },
+    { "src": "api/admin/ugc.py", "use": "@vercel/python" },
+    { "src": "api/admin/registrations.py", "use": "@vercel/python" },
+    { "src": "public/**", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/public/$1" }
   ],
   "headers": [
     {
