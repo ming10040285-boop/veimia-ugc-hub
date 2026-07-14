@@ -254,15 +254,19 @@ function adminApp() {
         return;
       }
 
-      try {
-        const payload = {
-          campaign_name: this.newCampaign.campaign_name.trim(),
-          product_mode: this.newCampaign.product_mode,
-          market: this.newCampaign.market.trim() || 'ko',
-          hero_image_url: this.newCampaign.hero_image_url.trim() || '',
-          introduction_text: this.newCampaign.introduction_text.trim() || ''
-        };
+      // Build payload — skip base64 in hero_image_url for API (too large)
+      const heroUrl = this.newCampaign.hero_image_url || '';
+      const payload = {
+        campaign_name: this.newCampaign.campaign_name.trim(),
+        product_mode: this.newCampaign.product_mode,
+        market: this.newCampaign.market.trim() || 'ko',
+        hero_image_url: heroUrl.startsWith('data:') ? '' : heroUrl.trim(),
+        introduction_text: this.newCampaign.introduction_text.trim() || '',
+        start_date: this.newCampaign.start_date_local ? new Date(this.newCampaign.start_date_local).toISOString() : null,
+        end_date: this.newCampaign.end_date_local ? new Date(this.newCampaign.end_date_local).toISOString() : null
+      };
 
+      try {
         const response = await fetch('/api/admin/campaigns', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -276,7 +280,9 @@ function adminApp() {
             product_mode: '',
             market: 'ko',
             hero_image_url: '',
-            introduction_text: ''
+            introduction_text: '',
+            start_date_local: '',
+            end_date_local: ''
           };
           this.showCreateCampaign = false;
           await this.loadCampaigns();
