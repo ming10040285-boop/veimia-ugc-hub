@@ -1053,21 +1053,13 @@ function adminApp() {
       }
 
       try {
-        // Load from GitHub raw URL to get the latest saved version (bypasses Vercel static cache)
-        const rawUrl = `https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/config/campaigns/${this.ugcSelectedCampaignId}.json?t=${Date.now()}`;
-        const response = await fetch(rawUrl);
+        // Load from read_campaign API (reads directly from GitHub, no cache)
+        const response = await fetch(`/api/admin/read_campaign?id=${this.ugcSelectedCampaignId}`);
         if (response.ok) {
           const data = await response.json();
           this.ugcPosts = (data.ugc_gallery || []).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
         } else {
-          // Fallback to local static file if GitHub raw is unavailable
-          const fallback = await fetch(`/config/campaigns/${this.ugcSelectedCampaignId}.json`);
-          if (fallback.ok) {
-            const data = await fallback.json();
-            this.ugcPosts = (data.ugc_gallery || []).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-          } else {
-            this.ugcError = 'UGC 게시물을 불러오는데 실패했습니다. 캠페인 파일을 확인하세요.';
-          }
+          this.ugcError = 'UGC 게시물을 불러오는데 실패했습니다. 캠페인 파일을 확인하세요.';
         }
       } catch (error) {
         console.error('Failed to load UGC posts:', error);
@@ -1210,13 +1202,8 @@ function adminApp() {
       if (!this.ugcSelectedCampaignId) return;
       
       try {
-        // Load the full campaign from GitHub raw URL (latest version, not cached)
-        const rawUrl = `https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/config/campaigns/${this.ugcSelectedCampaignId}.json?t=${Date.now()}`;
-        let resp = await fetch(rawUrl);
-        if (!resp.ok) {
-          // Fallback to local static file
-          resp = await fetch('/config/campaigns/' + this.ugcSelectedCampaignId + '.json');
-        }
+        // Load the full campaign from read_campaign API (no cache)
+        const resp = await fetch(`/api/admin/read_campaign?id=${this.ugcSelectedCampaignId}`);
         if (!resp.ok) {
           this.ugcError = '캠페인 데이터를 불러올 수 없습니다.';
           return;
