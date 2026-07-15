@@ -539,13 +539,14 @@ function adminApp() {
       delete campaignData.end_date_local;
       delete campaignData._configExpanded;
 
-      // Save via GitHub API
+      // Save via GitHub API (always save as demo.json for the main campaign)
+      const savePath = 'public/config/campaigns/' + (this.editingCampaign.campaign_id || 'demo') + '.json';
       try {
         const response = await fetch('/api/admin/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            path: 'public/config/campaigns/' + this.editingCampaign.campaign_id + '.json',
+            path: savePath,
             content: campaignData
           })
         });
@@ -560,7 +561,7 @@ function adminApp() {
           this.campaignError = err.message || '저장에 실패했습니다.';
         }
       } catch (error) {
-        this.campaignError = '네트워크 오류: ' + error.message;
+        this.campaignError = '네트워크 오류: ' + (error.message || '저장 실패') + ' — 이미지가 너무 큰 경우 이미지 URL을 사용해 주세요.';
       }
     },
 
