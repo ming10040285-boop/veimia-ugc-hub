@@ -1011,6 +1011,8 @@ function adminApp() {
       image_url: ''
     },
     ugcFormError: '',
+    ugcUploading: false,
+    ugcUploadError: '',
 
     /**
      * Load UGC posts for the selected campaign in the UGC tab.
@@ -1056,6 +1058,33 @@ function adminApp() {
     },
 
     /**
+     * Validate that an image_url is a valid HTTPS URL.
+     * Rejects data: URIs, Base64 patterns, and URLs exceeding 2048 characters.
+     * @param {string} url - The image URL to validate
+     * @returns {boolean} true if valid HTTPS URL, false otherwise
+     */
+    validateImageUrl(url) {
+      if (!url) return false;
+
+      // Enforce maximum 2048 character length
+      if (url.length > 2048) return false;
+
+      // Reject data: URIs
+      if (url.toLowerCase().startsWith('data:')) return false;
+
+      // Must start with https://
+      if (!url.startsWith('https://')) return false;
+
+      // Reject strings that contain raw Base64 patterns
+      // Base64 strings are typically long stretches of alphanumeric characters with +, /, and =
+      // A segment of 100+ consecutive Base64 chars without typical URL characters (., /, ?, &, =) suggests embedded Base64
+      const base64Pattern = /[A-Za-z0-9+/]{100,}/;
+      if (base64Pattern.test(url)) return false;
+
+      return true;
+    },
+
+    /**
      * Add a UGC post to the local list.
      * Works without backend API — adds to in-memory array.
      * Use "Export JSON" to save changes to file.
@@ -1080,9 +1109,9 @@ function adminApp() {
         return;
       }
 
-      // Validate image_url format
-      if (!this.isValidUrl(imageUrl)) {
-        this.ugcFormError = 'http:// 또는 https://로 시작하는 유효한 이미지 URL을 입력하세요.';
+      // Validate image_url format (HTTPS only, no data: URIs or Base64)
+      if (!this.validateImageUrl(imageUrl)) {
+        this.ugcFormError = 'HTTPS URL만 허용됩니다. data: URI 또는 Base64 데이터는 사용할 수 없습니다.';
         return;
       }
 
@@ -1396,46 +1425,82 @@ function adminApp() {
     },
 
     // =============================================
-    // UGC Image Upload (Local File → Base64)
+    // UGC Image Upload (via /api/admin/upload_image)
     // =============================================
 
     /**
-     * Handle local image file upload for UGC posts.
-     * Converts to Base64 Data URL (no backend needed).
+     * Upload a UGC image to GitHub storage via the upload_image endpoint.
+     * Reads the file as Base64, validates MIME type, and POSTs to the backend.
+     * On success, sets image_url to the returned raw GitHub URL.
      * @param {Event} event - File input change event
      */
-    handleUGCImageUpload(event) {
+    async uploadUGCImage(event) {
       const file = event.target.files[0];
       if (!file) return;
 
-      // Validate format
-      const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
-      if (!validTypes.includes(file.type)) {
-        this.ugcFormError = 'PNG, JPG, WebP 형식만 지원합니다.';
-        event.target.value = '';
-        return;
-      }
-
-      // Validate size (2MB max for Base64 embedding)
-      const maxSize = 2 * 1024 * 1024;
-      if (file.size > maxSize) {
-        this.ugcFormError = '파일 크기는 최대 2MB까지 허용됩니다.';
-        event.target.value = '';
-        return;
-      }
-
+      // Reset errors
+      this.ugcUploadError = '';
       this.ugcFormError = '';
 
-      // Read as Base64 Data URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        this.newUGCPost.image_url = e.target.result;
-      };
-      reader.onerror = () => {
-        this.ugcFormError = '파일 읽기에 실패했습니다.';
-      };
-      reader.readAsDataURL(file);
-      event.target.value = '';
+      // Validate MIME type
+      const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        this.ugcUploadError = '지원하지 않는 형식입니다. PNG, JPEG, WebP 파일만 업로드할 수 있습니다.';
+        event.target.value = '';
+        return;
+      }
+
+      // Set uploading state
+      this.ugcUploading = true;
+      this.ugcUploadError = '';
+
+      try {
+        // Read file as Base64
+        const base64Data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            // Strip the data URI prefix (e.g., "data:image/png;base64,")
+            const dataUrl = e.target.result;
+            const base64 = dataUrl.split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = () => reject(new Error('파일 읽기에 실패했습니다.'));
+          reader.readAsDataURL(file);
+        });
+
+        // POST to upload endpoint with 30-second timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        const response = await fetch('/api/admin/upload_image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            data: base64Data
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const result = await response.json();
+          this.newUGCPost.image_url = result.image_url;
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          this.ugcUploadError = errorData.error || '업로드에 실패했습니다.';
+        }
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          this.ugcUploadError = '업로드 시간이 초과되었습니다. 다시 시도해 주세요.';
+        } else {
+          this.ugcUploadError = error.message || '네트워크 오류가 발생했습니다.';
+        }
+      } finally {
+        this.ugcUploading = false;
+        event.target.value = '';
+      }
     },
 
     /**

@@ -826,15 +826,24 @@
             <div class="form-group">
               <label>이미지 업로드 (권장)</label>
               <div class="image-upload-area">
-                <div class="image-preview" x-show="newUGCPost.image_url && newUGCPost.image_url.startsWith('data:')">
+                <div class="image-preview" x-show="newUGCPost.image_url && newUGCPost.image_url.startsWith('https://')">
                   <img :src="newUGCPost.image_url" alt="미리보기" style="max-width:200px;max-height:200px;border-radius:8px;">
                 </div>
-                <label class="btn upload-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                <label class="btn upload-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;" :style="ugcUploading ? 'pointer-events:none;opacity:0.6' : ''">
                   📎 파일 선택
-                  <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" @change="handleUGCImageUpload($event)">
+                  <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" @change="uploadUGCImage($event)" :disabled="ugcUploading">
                 </label>
-                <span class="upload-hint">PNG, JPG, WebP / 최대 2MB</span>
+                <!-- Loading indicator during upload -->
+                <span class="upload-loading" x-show="ugcUploading" style="display:inline-flex;align-items:center;gap:6px;color:#6366f1;font-size:0.9em;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" style="animation:spin 1s linear infinite;" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                  </svg>
+                  업로드 중...
+                </span>
+                <span class="upload-hint" x-show="!ugcUploading">PNG, JPG, WebP</span>
               </div>
+              <!-- Upload error message -->
+              <div class="error-message" x-show="ugcUploadError" x-text="ugcUploadError" style="margin-top: 8px;"></div>
             </div>
 
             <!-- Or: Image URL -->
@@ -845,7 +854,7 @@
                 x-model="newUGCPost.image_url"
                 placeholder="https://... 이미지 URL"
                 maxlength="2048"
-                :disabled="newUGCPost.image_url && newUGCPost.image_url.startsWith('data:')"
+                :disabled="ugcUploading || (newUGCPost.image_url && newUGCPost.image_url.startsWith('data:'))"
               >
             </div>
 
@@ -866,8 +875,8 @@
 
             <!-- Form Actions -->
             <div class="form-actions">
-              <button class="btn" @click="showAddUGC = false; ugcFormError = ''; newUGCPost = { source_url: '', image_url: '' }">취소</button>
-              <button class="btn btn-primary" @click="addUGCPost()">추가</button>
+              <button class="btn" @click="showAddUGC = false; ugcFormError = ''; newUGCPost = { source_url: '', image_url: '' }" :disabled="ugcUploading">취소</button>
+              <button class="btn btn-primary" @click="addUGCPost()" :disabled="ugcUploading">추가</button>
             </div>
           </div>
         </div>

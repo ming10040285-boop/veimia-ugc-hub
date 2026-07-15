@@ -1383,3 +1383,10 @@ h3 {
   display: block;
   margin-top: 4px;
 }
+
+
+/* UGC Upload Loading Spinner Animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
