@@ -82,18 +82,7 @@ function adminApp() {
      * Tries API first, falls back to loading known campaign configs directly.
      */
     async loadCampaigns() {
-      try {
-        const response = await fetch('/api/admin/campaigns');
-        if (response.ok) {
-          const data = await response.json();
-          this.campaigns = data.campaigns || [];
-          return;
-        }
-      } catch (error) {
-        // API not available (drag-deploy mode) — fall back to loading config files
-      }
-
-      // Fallback: try to load known campaign config directly
+      // Load directly from static config file (reliable across all deploy modes)
       try {
         const demoResp = await fetch('/config/campaigns/demo.json');
         if (demoResp.ok) {
