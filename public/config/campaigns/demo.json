@@ -34,40 +34,34 @@
   ],
   "ugc_gallery": [
     {
-      "post_id": "ugc-001",
-      "image_url": "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=300&h=300&fit=crop",
-      "source_url": "https://www.instagram.com/p/example1/",
-      "display_order": 1
-    },
-    {
       "post_id": "ugc-002",
       "image_url": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=300&h=300&fit=crop",
       "source_url": "https://www.instagram.com/p/example2/",
-      "display_order": 2
+      "display_order": 1
     },
     {
       "post_id": "ugc-003",
       "image_url": "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=300&h=300&fit=crop",
       "source_url": "https://www.instagram.com/p/example3/",
-      "display_order": 3
+      "display_order": 2
     },
     {
       "post_id": "ugc-004",
       "image_url": "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=300&h=300&fit=crop",
       "source_url": "https://www.instagram.com/p/example4/",
-      "display_order": 4
+      "display_order": 3
     },
     {
       "post_id": "ugc-005",
       "image_url": "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=300&h=300&fit=crop",
       "source_url": "https://www.instagram.com/p/example5/",
-      "display_order": 5
+      "display_order": 4
     },
     {
       "post_id": "ugc-006",
       "image_url": "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=300&h=300&fit=crop",
       "source_url": "https://www.instagram.com/p/example6/",
-      "display_order": 6
+      "display_order": 5
     }
   ]
 }
