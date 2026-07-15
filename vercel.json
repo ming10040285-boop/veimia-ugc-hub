@@ -12,17 +12,16 @@
     { "src": "public/**", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/api/admin/save", "dest": "/api/admin/save.py" },
+    { "src": "/api/admin/campaigns/(.*)", "dest": "/api/admin/campaigns.py" },
+    { "src": "/api/admin/campaigns", "dest": "/api/admin/campaigns.py" },
+    { "src": "/api/admin/products/(.*)", "dest": "/api/admin/products.py" },
+    { "src": "/api/admin/products", "dest": "/api/admin/products.py" },
+    { "src": "/api/admin/campaign_products", "dest": "/api/admin/campaign_products.py" },
+    { "src": "/api/admin/upload", "dest": "/api/admin/upload.py" },
+    { "src": "/api/admin/ugc", "dest": "/api/admin/ugc.py" },
+    { "src": "/api/admin/registrations", "dest": "/api/admin/registrations.py" },
+    { "src": "/api/register", "dest": "/api/register.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
-      ]
-    }
   ]
 }
