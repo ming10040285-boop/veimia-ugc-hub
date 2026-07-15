@@ -1113,7 +1113,9 @@ function adminApp() {
       this.ugcPosts.push(newPost);
       this.newUGCPost = { source_url: '', image_url: '' };
       this.showAddUGC = false;
-      this.ugcSuccess = 'UGC 게시물이 추가되었습니다. "JSON 내보내기" 버튼으로 저장하세요.';
+      this.ugcSuccess = 'UGC 게시물이 추가되었습니다. 저장 중...';
+      // Save to GitHub
+      await this._saveUGCToGitHub();
     },
 
     /**
@@ -1132,7 +1134,9 @@ function adminApp() {
       // Update display_order
       this.ugcPosts.forEach((p, i) => { p.display_order = i + 1; });
       
-      this.ugcSuccess = 'UGC 게시물이 삭제되었습니다. "JSON 내보내기" 버튼으로 저장하세요.';
+      this.ugcSuccess = 'UGC 게시물이 삭제되었습니다. 저장 중...';
+      // Save to GitHub
+      await this._saveUGCToGitHub();
     },
 
     /**
@@ -1141,9 +1145,54 @@ function adminApp() {
     async reorderUGCPosts() {
       this.ugcError = '';
       this.ugcSuccess = '';
-      // Just update display_order in local array
+      // Update display_order in local array
       this.ugcPosts.forEach((p, i) => { p.display_order = i + 1; });
-      this.ugcSuccess = '순서가 변경되었습니다. "JSON 내보내기" 버튼으로 저장하세요.';
+      // Save to GitHub via save API
+      await this._saveUGCToGitHub();
+    },
+
+    /**
+     * Save current UGC posts to GitHub (updates the campaign's ugc_gallery in demo.json)
+     */
+    async _saveUGCToGitHub() {
+      if (!this.ugcSelectedCampaignId) return;
+      
+      try {
+        // Load the full campaign first
+        const resp = await fetch('/config/campaigns/' + this.ugcSelectedCampaignId + '.json');
+        if (!resp.ok) {
+          this.ugcError = '캠페인 데이터를 불러올 수 없습니다.';
+          return;
+        }
+        const campaignData = await resp.json();
+        
+        // Update ugc_gallery
+        campaignData.ugc_gallery = this.ugcPosts.map((p, i) => ({
+          post_id: p.post_id || ('ugc-' + Date.now() + '-' + i),
+          image_url: p.image_url,
+          source_url: p.source_url || null,
+          display_order: i + 1
+        }));
+        
+        // Save via GitHub API
+        const saveResp = await fetch('/api/admin/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: 'public/config/campaigns/' + this.ugcSelectedCampaignId + '.json',
+            content: campaignData
+          })
+        });
+        
+        if (saveResp.ok) {
+          this.ugcSuccess = 'UGC 갤러리가 저장되었습니다. 약 30초 후 전면 페이지에 반영됩니다.';
+        } else {
+          const err = await saveResp.json().catch(() => ({}));
+          this.ugcError = err.message || 'UGC 저장에 실패했습니다.';
+        }
+      } catch (e) {
+        this.ugcError = '네트워크 오류: ' + e.message;
+      }
     },
 
     // UGC Drag-to-Reorder
