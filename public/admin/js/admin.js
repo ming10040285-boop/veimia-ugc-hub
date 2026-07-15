@@ -799,9 +799,9 @@ function adminApp() {
      * @returns {boolean}
      */
     isValidUrl(url) {
-      if (!url || (!url.startsWith('data:image/') && url.length > 2048)) return false;
-      // Allow Base64 data URLs (from local upload)
-      if (url.startsWith('data:image/')) return true;
+      if (!url || url.length > 2048) return false;
+      // Only allow HTTPS URLs (no more Base64 data URLs)
+      if (!url.startsWith('https://')) return false;
       try {
         const parsed = new URL(url);
         return parsed.protocol === 'http:' || parsed.protocol === 'https:';
@@ -837,11 +837,36 @@ function adminApp() {
       // Clear error
       this.productFormErrors = { ...this.productFormErrors, imageUpload: '' };
 
-      // Convert to Base64 locally (no API needed)
+      // Upload to GitHub storage via upload_image endpoint
       const reader = new FileReader();
-      reader.onload = (e) => {
-        this.productForm.product_image_url = e.target.result;
-        this.productFormErrors = { ...this.productFormErrors, product_image_url: '' };
+      reader.onload = async (e) => {
+        const dataUrl = e.target.result;
+        const base64 = dataUrl.split(',')[1];
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          const response = await fetch('/api/admin/upload_image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name, data: base64 }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (response.ok) {
+            const result = await response.json();
+            this.productForm.product_image_url = result.image_url;
+            this.productFormErrors = { ...this.productFormErrors, product_image_url: '' };
+          } else {
+            const err = await response.json().catch(() => ({}));
+            this.productFormErrors = { ...this.productFormErrors, imageUpload: err.error || '업로드에 실패했습니다.' };
+          }
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            this.productFormErrors = { ...this.productFormErrors, imageUpload: '업로드 시간이 초과되었습니다.' };
+          } else {
+            this.productFormErrors = { ...this.productFormErrors, imageUpload: '네트워크 오류가 발생했습니다.' };
+          }
+        }
       };
       reader.onerror = () => {
         this.productFormErrors = { ...this.productFormErrors, imageUpload: '파일 읽기에 실패했습니다.' };
@@ -1518,10 +1543,10 @@ function adminApp() {
 
     /**
      * Handle local image file upload for hero image in campaign edit.
-     * Converts to Base64 Data URL.
+     * Uploads to GitHub storage and stores URL.
      * @param {Event} event - File input change event
      */
-    handleHeroImageUpload(event) {
+    async handleHeroImageUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
 
@@ -1532,17 +1557,31 @@ function adminApp() {
         return;
       }
 
-      const maxSize = 2 * 1024 * 1024;
-      if (file.size > maxSize) {
-        this.campaignError = '파일 크기는 최대 2MB까지 허용됩니다.';
-        event.target.value = '';
-        return;
-      }
-
       this.campaignError = '';
       const reader = new FileReader();
-      reader.onload = (e) => {
-        this.editingCampaign.hero_image_url = e.target.result;
+      reader.onload = async (e) => {
+        const dataUrl = e.target.result;
+        const base64 = dataUrl.split(',')[1];
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          const response = await fetch('/api/admin/upload_image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name, data: base64 }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (response.ok) {
+            const result = await response.json();
+            this.editingCampaign.hero_image_url = result.image_url;
+          } else {
+            const err = await response.json().catch(() => ({}));
+            this.campaignError = err.error || '업로드에 실패했습니다.';
+          }
+        } catch (error) {
+          this.campaignError = error.name === 'AbortError' ? '업로드 시간이 초과되었습니다.' : '네트워크 오류가 발생했습니다.';
+        }
       };
       reader.readAsDataURL(file);
       event.target.value = '';
@@ -1563,17 +1602,31 @@ function adminApp() {
         return;
       }
 
-      const maxSize = 2 * 1024 * 1024;
-      if (file.size > maxSize) {
-        this.createCampaignError = '파일 크기는 최대 2MB까지 허용됩니다.';
-        event.target.value = '';
-        return;
-      }
-
       this.createCampaignError = '';
       const reader = new FileReader();
-      reader.onload = (e) => {
-        this.newCampaign.hero_image_url = e.target.result;
+      reader.onload = async (e) => {
+        const dataUrl = e.target.result;
+        const base64 = dataUrl.split(',')[1];
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          const response = await fetch('/api/admin/upload_image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name, data: base64 }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (response.ok) {
+            const result = await response.json();
+            this.newCampaign.hero_image_url = result.image_url;
+          } else {
+            const err = await response.json().catch(() => ({}));
+            this.createCampaignError = err.error || '업로드에 실패했습니다.';
+          }
+        } catch (error) {
+          this.createCampaignError = error.name === 'AbortError' ? '업로드 시간이 초과되었습니다.' : '네트워크 오류가 발생했습니다.';
+        }
       };
       reader.readAsDataURL(file);
       event.target.value = '';
