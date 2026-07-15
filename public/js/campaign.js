@@ -571,28 +571,14 @@
     html += '<span class="form-field__error"></span>';
     html += '</div>';
 
-    // Consent section with collapsible detail panel
-    html += '<div class="consent-section" data-field="consent">';
-    html += '<div class="consent-section__header">';
-    html += '<label class="consent-section__checkbox-label">';
-    html += '<input type="checkbox" id="field-consent" name="consent">';
-    html += '<span class="consent-section__checkbox-text" data-i18n="consent_label">' + t('consent_label') + '</span>';
-    html += '</label>';
-    html += '<button type="button" class="consent-section__toggle" aria-expanded="true" aria-controls="consent-details">';
-    html += '<span class="consent-section__toggle-icon">&#9650;</span>';
-    html += '</button>';
-    html += '</div>';
-    html += '<div id="consent-details" class="consent-section__details" aria-hidden="false">';
-    html += '<p data-i18n="consent_detail_purpose">' + t('consent_detail_purpose') + '</p>';
-    html += '<p data-i18n="consent_detail_data_types">' + t('consent_detail_data_types') + '</p>';
-    html += '<p data-i18n="consent_detail_retention">' + t('consent_detail_retention') + '</p>';
-    html += '<p data-i18n="consent_detail_withdrawal">' + t('consent_detail_withdrawal') + '</p>';
-    html += '</div>';
-    html += '<span class="form-field__error"></span>';
-    html += '</div>';
-
     // Submit button
     html += '<button type="submit" class="btn btn--primary registration-form__submit">' + t('submit_button') + '</button>';
+
+    // Consent notice (simple text below submit button)
+    html += '<p class="consent-notice" style="text-align:center;font-size:0.8rem;color:#888;margin-top:12px;">参与活动即同意品牌方用来宣传与品牌推广使用。</p>';
+
+    // Hidden consent field (always true since user submits = agrees)
+    html += '<input type="hidden" id="field-consent" name="consent" value="true">';
 
     // Message area for success/error feedback
     html += '<div id="form-message" class="form-message" style="display:none;"></div>';
@@ -600,36 +586,6 @@
     html += '</form>';
 
     container.innerHTML = html;
-
-    // Bind consent details toggle
-    var consentToggle = document.querySelector('.consent-section__toggle');
-    if (consentToggle) {
-      consentToggle.addEventListener('click', function () {
-        var details = document.getElementById('consent-details');
-        var expanded = consentToggle.getAttribute('aria-expanded') === 'true';
-        var icon = consentToggle.querySelector('.consent-section__toggle-icon');
-
-        if (expanded) {
-          // Collapse
-          consentToggle.setAttribute('aria-expanded', 'false');
-          details.setAttribute('aria-hidden', 'true');
-          details.style.maxHeight = '0';
-          if (icon) icon.innerHTML = '&#9660;';
-        } else {
-          // Expand
-          consentToggle.setAttribute('aria-expanded', 'true');
-          details.setAttribute('aria-hidden', 'false');
-          details.style.maxHeight = details.scrollHeight + 'px';
-          if (icon) icon.innerHTML = '&#9650;';
-        }
-      });
-
-      // Set initial expanded state max-height after render
-      var details = document.getElementById('consent-details');
-      if (details) {
-        details.style.maxHeight = details.scrollHeight + 'px';
-      }
-    }
 
     // Bind form submission
     var form = document.getElementById('registration-form');
@@ -702,14 +658,13 @@
     var phone = (document.getElementById('field-phone').value || '').trim();
     var address = (document.getElementById('field-address').value || '').trim();
     var postalCode = (document.getElementById('field-postal-code').value || '').trim();
-    var consent = document.getElementById('field-consent').checked;
+    var consent = true; // Consent is implicit by submitting the form
 
     if (!instagramId || instagramId.length > 200) markInvalid('instagram_id');
     if (!name || name.length > 100) markInvalid('name');
     if (!phone || phone.length > 20) markInvalid('phone');
     if (!address || address.length > 300) markInvalid('address');
     if (!postalCode || postalCode.length > 10) markInvalid('postal_code');
-    if (!consent) markInvalid('consent', t('consent_required_error'));
 
     // Validate size and color from existing dropdowns
     var selectedSize = sizeSelect ? sizeSelect.value : '';
