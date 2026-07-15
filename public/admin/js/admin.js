@@ -511,31 +511,57 @@ function adminApp() {
       this.campaignError = '';
       this.campaignSuccess = '';
 
-      // Save locally
-      this.editingCampaign.updated_at = new Date().toISOString();
-      const idx = this.campaigns.findIndex(c => c.campaign_id === this.editingCampaign.campaign_id);
-      if (idx >= 0) {
-        this.campaigns[idx] = { ...this.editingCampaign, products: this.campaigns[idx].products };
-      }
-      this.campaignSuccess = '설정이 저장되었습니다. "📥 JSON 내보내기"로 파일을 다운로드하세요.';
+      // Build full campaign data
+      const campaignData = {
+        ...this.editingCampaign,
+        products: this.assignedProducts.map((p, i) => ({
+          product_id: p.product_id,
+          product_name: p.product_name,
+          product_image_url: p.product_image_url,
+          short_description: p.short_description,
+          product_detail_url: p.product_detail_url || null,
+          size_guide_url: p.size_guide_url || null,
+          available_sizes: p.available_sizes || [],
+          available_colors: p.available_colors || [],
+          status: p.status || 'open',
+          display_order: i + 1,
+          override_product_image_url: p.override_product_image_url || null,
+          override_product_detail_url: p.override_product_detail_url || null,
+          override_size_guide_url: p.override_size_guide_url || null,
+          override_short_description: p.override_short_description || null
+        })),
+        ugc_gallery: this.editingCampaign.ugc_gallery || [],
+        updated_at: new Date().toISOString()
+      };
 
-      // Try API in background
+      // Remove internal fields
+      delete campaignData.start_date_local;
+      delete campaignData.end_date_local;
+      delete campaignData._configExpanded;
+
+      // Save via GitHub API
       try {
-        const payload = {
-          campaign_name: this.editingCampaign.campaign_name,
-          product_mode: this.editingCampaign.product_mode,
-          market: this.editingCampaign.market || 'ko',
-          hero_image_url: (this.editingCampaign.hero_image_url || '').startsWith('data:') ? '' : (this.editingCampaign.hero_image_url || ''),
-          introduction_text: this.editingCampaign.introduction_text || '',
-          start_date: this.editingCampaign.start_date || null,
-          end_date: this.editingCampaign.end_date || null
-        };
-        fetch(`/api/admin/campaigns/${this.editingCampaign.campaign_id}`, {
-          method: 'PUT',
+        const response = await fetch('/api/admin/save', {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).catch(() => {});
-      } catch (e) {}
+          body: JSON.stringify({
+            path: 'public/config/campaigns/' + this.editingCampaign.campaign_id + '.json',
+            content: campaignData
+          })
+        });
+
+        if (response.ok) {
+          this.campaignSuccess = '저장 완료! 약 30초 후 전면 페이지에 반영됩니다.';
+          // Update local state
+          const idx = this.campaigns.findIndex(c => c.campaign_id === this.editingCampaign.campaign_id);
+          if (idx >= 0) this.campaigns[idx] = campaignData;
+        } else {
+          const err = await response.json().catch(() => ({}));
+          this.campaignError = err.message || '저장에 실패했습니다.';
+        }
+      } catch (error) {
+        this.campaignError = '네트워크 오류: ' + error.message;
+      }
     },
 
     /**
@@ -545,7 +571,7 @@ function adminApp() {
       this.campaignError = '';
       this.campaignSuccess = '';
 
-      // Save locally — update the editing campaign's products
+      // Update products in editing campaign
       this.editingCampaign.products = this.assignedProducts.map((p, i) => ({
         product_id: p.product_id,
         product_name: p.product_name,
@@ -563,23 +589,8 @@ function adminApp() {
         override_short_description: p.override_short_description || null
       }));
 
-      // Update in campaigns list
-      const idx = this.campaigns.findIndex(c => c.campaign_id === this.editingCampaign.campaign_id);
-      if (idx >= 0) {
-        this.campaigns[idx] = { ...this.editingCampaign };
-      }
-
-      this.campaignSuccess = '상품 배정이 저장되었습니다. "📥 JSON 내보내기"로 파일을 다운로드하세요.';
-
-      // Try API in background
-      try {
-        const payload = { products: this.editingCampaign.products };
-        fetch(`/api/admin/campaign_products?campaign_id=${this.editingCampaign.campaign_id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).catch(() => {});
-      } catch (e) {}
+      // Save the full campaign (including products) via saveCampaignConfig
+      await this.saveCampaignConfig();
       }
     },
 
