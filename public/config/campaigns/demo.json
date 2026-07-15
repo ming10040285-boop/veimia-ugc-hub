@@ -34,40 +34,34 @@
   ],
   "ugc_gallery": [
     {
-      "post_id": "ugc-1784096315130",
-      "image_url": "https://images.unsplash.com/photo-1609505848912-b7c3b8b4beda?w=400&h=400&fit=crop",
-      "source_url": null,
-      "display_order": 1
-    },
-    {
       "post_id": "ugc-1784104953436",
       "image_url": "https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/uploads/ugc/38a2b495-c07c-4288-8be6-be2c1365fe9f.png",
       "source_url": null,
-      "display_order": 2
+      "display_order": 1
     },
     {
       "post_id": "ugc-1784104970948",
       "image_url": "https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/uploads/ugc/c0673f19-e516-4de3-a67d-e44457520545.png",
       "source_url": null,
-      "display_order": 3
+      "display_order": 2
     },
     {
       "post_id": "ugc-1784104981020",
       "image_url": "https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/uploads/ugc/794a4a58-f8dc-4f37-b03f-4dc93f85b683.png",
       "source_url": null,
-      "display_order": 4
+      "display_order": 3
     },
     {
       "post_id": "ugc-1784104991317",
       "image_url": "https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/uploads/ugc/61e21d70-2606-4934-9f98-54e192ed40fd.png",
       "source_url": null,
-      "display_order": 5
+      "display_order": 4
     },
     {
       "post_id": "ugc-1784105001973",
       "image_url": "https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/uploads/ugc/d598ac08-e0a6-4b1e-836e-b8173cac4694.png",
       "source_url": null,
-      "display_order": 6
+      "display_order": 5
     }
   ]
 }
