@@ -591,7 +591,6 @@ function adminApp() {
 
       // Save the full campaign (including products) via saveCampaignConfig
       await this.saveCampaignConfig();
-      }
     },
 
     /**
