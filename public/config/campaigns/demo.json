@@ -9,20 +9,24 @@
   "start_date": "2026-07-14T16:00:00.000Z",
   "end_date": "2026-07-22T15:59:00.000Z",
   "created_at": "2025-01-15T09:00:00Z",
-  "updated_at": "2026-07-15T08:57:04.437Z",
+  "updated_at": "2026-07-16T05:44:54.368Z",
   "products": [
     {
-      "product_id": "prod-1784096038226",
-      "product_name": "衬衫",
-      "product_image_url": "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400&h=400&fit=crop",
-      "short_description": "VEIMIA 防紫外线衬衫 | 不易起皱，版型整洁。推荐用于打造轻盈清爽的夏季日常造型。",
+      "product_id": "prod-1784180689016",
+      "product_name": "1",
+      "product_image_url": "https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/uploads/ugc/054c861e-11d0-4a94-98c9-9d2e0c6e759e.png",
+      "short_description": "VEIMIA 자외선 차단 셔츠丨구김 걱정 없는 깔끔한 핏 가볍고 산뜻한 여름 데일리룩 추천",
       "product_detail_url": "https://veimia.co.kr/products/uv-protection-cooling-lightweight-shirts-1012015734",
       "size_guide_url": "https://veimia.co.kr/products/uv-protection-cooling-lightweight-shirts-1012015734",
       "available_sizes": [
-        "S"
+        "S",
+        "M",
+        "L"
       ],
       "available_colors": [
-        "黄色"
+        "黄色",
+        "粉色",
+        "蓝色"
       ],
       "status": "open",
       "display_order": 1,
@@ -56,6 +60,12 @@
       "image_url": "https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/uploads/ugc/61e21d70-2606-4934-9f98-54e192ed40fd.png",
       "source_url": null,
       "display_order": 4
+    },
+    {
+      "post_id": "ugc-1784105001973",
+      "image_url": "https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/uploads/ugc/d598ac08-e0a6-4b1e-836e-b8173cac4694.png",
+      "source_url": null,
+      "display_order": 5
     }
   ]
 }
