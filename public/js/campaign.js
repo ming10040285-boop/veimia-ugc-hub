@@ -158,7 +158,7 @@
     // Product name and ID
     html += '<div class="single-product__info">';
     html += '<h2 class="single-product__name">' + product.product_name + '</h2>';
-    html += '<span class="single-product__id">' + product.product_id + '</span>';
+    html += '<span class="single-product__id" style="display:none;">' + product.product_id + '</span>';
     html += '</div>';
 
     // Short description
@@ -328,7 +328,7 @@
     // Product info
     html += '<div class="product-detail-modal__info">';
     html += '<h2 class="product-detail-modal__name">' + product.product_name + '</h2>';
-    html += '<span class="product-detail-modal__id">' + product.product_id + '</span>';
+    html += '<span class="product-detail-modal__id" style="display:none;">' + product.product_id + '</span>';
 
     // Full description (not truncated)
     if (product.short_description) {
@@ -459,7 +459,7 @@
       // Product info
       html += '<div class="product-card__body">';
       html += '<h3 class="product-card__name">' + product.product_name + '</h3>';
-      html += '<span class="product-card__id">' + product.product_id + '</span>';
+      html += '<span class="product-card__id" style="display:none;">' + product.product_id + '</span>';
       html += '<p class="product-card__description">' + description + '</p>';
 
       // Action buttons
