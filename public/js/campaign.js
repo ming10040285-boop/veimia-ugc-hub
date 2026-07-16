@@ -39,17 +39,17 @@
   function fetchCampaignConfig(campaignId) {
     var staticUrl = '/config/campaigns/' + encodeURIComponent(campaignId) + '.json';
     
-    // Try read_campaign API with 5-second timeout, fallback to static file
-    var apiUrl = '/api/admin/read_campaign?id=' + encodeURIComponent(campaignId);
+    // Try GitHub raw URL directly (no API needed, works on mobile)
+    var rawUrl = 'https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/config/campaigns/' + encodeURIComponent(campaignId) + '.json?t=' + Date.now();
     var controller = new AbortController();
     var timeoutId = setTimeout(function() { controller.abort(); }, 5000);
 
-    return fetch(apiUrl, { signal: controller.signal }).then(function (response) {
+    return fetch(rawUrl, { signal: controller.signal }).then(function (response) {
       clearTimeout(timeoutId);
       if (response.ok) {
         return response.json();
       }
-      throw new Error('API returned ' + response.status);
+      throw new Error('Raw URL returned ' + response.status);
     }).catch(function () {
       clearTimeout(timeoutId);
       // Fallback to static file
