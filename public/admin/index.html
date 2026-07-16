@@ -448,6 +448,11 @@
           <div class="modal-content">
             <h3>새 캠페인 만들기</h3>
             <div class="form-group">
+              <label>활동 ID (URL에 사용됨)</label>
+              <input type="text" x-model="newCampaign.campaign_id" placeholder="예: summer-2025 (비워두면 자동 생성)" maxlength="50" pattern="[a-z0-9\-]+" style="font-family:monospace;">
+              <span class="field-hint">영문 소문자, 숫자, 하이픈만 사용 (예: summer-2025)</span>
+            </div>
+            <div class="form-group">
               <label>캠페인 이름 <span class="required">*</span></label>
               <input type="text" x-model="newCampaign.campaign_name" placeholder="캠페인 이름을 입력하세요" maxlength="200">
             </div>

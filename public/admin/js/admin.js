@@ -41,6 +41,7 @@ function adminApp() {
     editingCampaign: null,
     assignedProducts: [],
     newCampaign: {
+      campaign_id: '',
       campaign_name: '',
       product_mode: '',
       market: 'ko',
@@ -245,7 +246,7 @@ function adminApp() {
       }
 
       // Build complete campaign object locally
-      const campaignId = 'campaign-' + Date.now();
+      const campaignId = this.newCampaign.campaign_id.trim() || ('campaign-' + Date.now());
       const campaignData = {
         campaign_id: campaignId,
         campaign_name: this.newCampaign.campaign_name.trim(),
@@ -267,6 +268,7 @@ function adminApp() {
 
       // Reset form and close modal
       this.newCampaign = {
+        campaign_id: '',
         campaign_name: '',
         product_mode: '',
         market: 'ko',
