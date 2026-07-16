@@ -37,14 +37,20 @@
    * @returns {Promise<Object>} The parsed campaign configuration
    */
   function fetchCampaignConfig(campaignId) {
-    var url = '/config/campaigns/' + encodeURIComponent(campaignId) + '.json';
-    return fetch(url).then(function (response) {
-      if (!response.ok) {
-        throw new Error(
-          'Failed to load campaign config: ' + url + ' (HTTP ' + response.status + ')'
-        );
+    // Try read_campaign API first (reads directly from GitHub, no cache)
+    var apiUrl = '/api/admin/read_campaign?id=' + encodeURIComponent(campaignId);
+    return fetch(apiUrl).then(function (response) {
+      if (response.ok) {
+        return response.json();
       }
-      return response.json();
+      // Fallback to static file if API fails
+      var staticUrl = '/config/campaigns/' + encodeURIComponent(campaignId) + '.json';
+      return fetch(staticUrl).then(function (resp) {
+        if (!resp.ok) {
+          throw new Error('Failed to load campaign config (HTTP ' + resp.status + ')');
+        }
+        return resp.json();
+      });
     });
   }
 
