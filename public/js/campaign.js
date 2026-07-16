@@ -177,9 +177,6 @@
     if (showDetailBtn) {
       html += '<a href="' + product.product_detail_url + '" target="_blank" rel="noopener noreferrer" class="btn btn--secondary single-product__detail-btn">' + t('product_detail_button') + '</a>';
     }
-    if (showSizeGuideBtn) {
-      html += '<button type="button" class="btn btn--secondary single-product__size-guide-btn" onclick="Campaign.showSizeGuidePopup(\'' + product.size_guide_url.replace(/'/g, "\\'") + '\')">' + t('size_guide_button') + '</button>';
-    }
     html += '</div>';
 
     // Size and color prompt
