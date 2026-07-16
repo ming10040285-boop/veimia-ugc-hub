@@ -37,14 +37,22 @@
    * @returns {Promise<Object>} The parsed campaign configuration
    */
   function fetchCampaignConfig(campaignId) {
-    // Try read_campaign API first (reads directly from GitHub, no cache)
+    var staticUrl = '/config/campaigns/' + encodeURIComponent(campaignId) + '.json';
+    
+    // Try read_campaign API with 5-second timeout, fallback to static file
     var apiUrl = '/api/admin/read_campaign?id=' + encodeURIComponent(campaignId);
-    return fetch(apiUrl).then(function (response) {
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function() { controller.abort(); }, 5000);
+
+    return fetch(apiUrl, { signal: controller.signal }).then(function (response) {
+      clearTimeout(timeoutId);
       if (response.ok) {
         return response.json();
       }
-      // Fallback to static file if API fails
-      var staticUrl = '/config/campaigns/' + encodeURIComponent(campaignId) + '.json';
+      throw new Error('API returned ' + response.status);
+    }).catch(function () {
+      clearTimeout(timeoutId);
+      // Fallback to static file
       return fetch(staticUrl).then(function (resp) {
         if (!resp.ok) {
           throw new Error('Failed to load campaign config (HTTP ' + resp.status + ')');
