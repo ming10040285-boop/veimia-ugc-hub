@@ -549,49 +549,49 @@
 
     // Instagram ID
     html += '<div class="form-field" data-field="instagram_id">';
-    html += '<label for="field-instagram-id">Instagram ID</label>';
+    html += '<label for="field-instagram-id">인스타그램 ID</label>';
     html += '<input type="text" id="field-instagram-id" name="instagram_id" maxlength="200" autocomplete="off" placeholder="@username">';
     html += '<span class="form-field__error"></span>';
     html += '</div>';
 
     // 姓名
     html += '<div class="form-field" data-field="name">';
-    html += '<label for="field-name">이름 (姓名)</label>';
+    html += '<label for="field-name">이름</label>';
     html += '<input type="text" id="field-name" name="name" maxlength="100" autocomplete="name">';
     html += '<span class="form-field__error"></span>';
     html += '</div>';
 
     // 邮编
     html += '<div class="form-field" data-field="postal_code">';
-    html += '<label for="field-postal-code">우편번호 (邮编)</label>';
+    html += '<label for="field-postal-code">우편번호</label>';
     html += '<input type="text" id="field-postal-code" name="postal_code" maxlength="10" autocomplete="postal-code">';
     html += '<span class="form-field__error"></span>';
     html += '</div>';
 
     // 电话
     html += '<div class="form-field" data-field="phone">';
-    html += '<label for="field-phone">전화번호 (电话)</label>';
+    html += '<label for="field-phone">전화번호</label>';
     html += '<input type="tel" id="field-phone" name="phone" maxlength="20" autocomplete="tel">';
     html += '<span class="form-field__error"></span>';
     html += '</div>';
 
     // 州/省
     html += '<div class="form-field" data-field="state">';
-    html += '<label for="field-state">시/도 (州/省)</label>';
+    html += '<label for="field-state">시/도</label>';
     html += '<input type="text" id="field-state" name="state" maxlength="100" autocomplete="address-level1">';
     html += '<span class="form-field__error"></span>';
     html += '</div>';
 
     // 城市
     html += '<div class="form-field" data-field="city">';
-    html += '<label for="field-city">시/군/구 (城市)</label>';
+    html += '<label for="field-city">시/군/구</label>';
     html += '<input type="text" id="field-city" name="city" maxlength="100" autocomplete="address-level2">';
     html += '<span class="form-field__error"></span>';
     html += '</div>';
 
     // 详细地址
     html += '<div class="form-field" data-field="address">';
-    html += '<label for="field-address">상세 주소 (详细地址)</label>';
+    html += '<label for="field-address">상세 주소</label>';
     html += '<input type="text" id="field-address" name="address" maxlength="300" autocomplete="street-address">';
     html += '<span class="form-field__error"></span>';
     html += '</div>';
