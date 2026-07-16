@@ -3,35 +3,88 @@
 Handles POST (add), GET (list/single), PUT (update) operations
 for the product library stored in /public/config/products/library.json.
 
-Timeout: Vercel enforces a 10s maximum execution time via vercel.json maxDuration.
-         This endpoint performs local file I/O only — timeout risk is minimal.
+Uses GitHub API for persistent storage (Vercel filesystem is ephemeral).
 """
 
 import json
 import os
 import uuid
+import base64
+import urllib.request
+import urllib.error
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 
-# Path to library.json relative to this file
-LIBRARY_PATH = os.path.normpath(os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    '..', '..', 'public', 'config', 'products', 'library.json'
-))
+GITHUB_OWNER = "ming10040285-boop"
+GITHUB_REPO = "veimia-ugc-hub"
+GITHUB_BRANCH = "main"
+LIBRARY_FILE_PATH = "public/config/products/library.json"
+
+
+def _get_token():
+    return os.environ.get("GITHUB_TOKEN", "")
 
 
 def _read_library():
-    """Read and return the library.json data."""
-    with open(LIBRARY_PATH, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    """Read library.json from GitHub repository."""
+    token = _get_token()
+    if not token:
+        raise Exception("GITHUB_TOKEN not configured")
+
+    api_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{LIBRARY_FILE_PATH}?ref={GITHUB_BRANCH}"
+    req = urllib.request.Request(api_url)
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Accept", "application/vnd.github.v3+json")
+    req.add_header("User-Agent", "veimia-ugc-hub")
+
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+        content_b64 = data.get("content", "").replace("\n", "")
+        content_bytes = base64.b64decode(content_b64)
+        return json.loads(content_bytes.decode("utf-8"))
 
 
 def _write_library(data):
-    """Write data to library.json, preserving formatting."""
-    os.makedirs(os.path.dirname(LIBRARY_PATH), exist_ok=True)
-    with open(LIBRARY_PATH, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    """Write library.json to GitHub repository via Contents API."""
+    token = _get_token()
+    if not token:
+        raise Exception("GITHUB_TOKEN not configured")
+
+    api_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{LIBRARY_FILE_PATH}"
+
+    # Get current file SHA (needed for updates)
+    sha = None
+    try:
+        get_req = urllib.request.Request(f"{api_url}?ref={GITHUB_BRANCH}")
+        get_req.add_header("Authorization", f"Bearer {token}")
+        get_req.add_header("Accept", "application/vnd.github.v3+json")
+        get_req.add_header("User-Agent", "veimia-ugc-hub")
+        with urllib.request.urlopen(get_req, timeout=8) as resp:
+            file_data = json.loads(resp.read().decode("utf-8"))
+            sha = file_data.get("sha")
+    except urllib.error.HTTPError:
+        pass  # File doesn't exist yet, will create
+
+    # Write file
+    content_str = json.dumps(data, ensure_ascii=False, indent=2)
+    content_b64 = base64.b64encode(content_str.encode("utf-8")).decode("ascii")
+
+    payload = {
+        "message": "Admin: update library.json",
+        "content": content_b64,
+        "branch": GITHUB_BRANCH
+    }
+    if sha:
+        payload["sha"] = sha
+
+    put_req = urllib.request.Request(api_url, data=json.dumps(payload).encode("utf-8"), method="PUT")
+    put_req.add_header("Authorization", f"Bearer {token}")
+    put_req.add_header("Accept", "application/vnd.github.v3+json")
+    put_req.add_header("Content-Type", "application/json")
+    put_req.add_header("User-Agent", "veimia-ugc-hub")
+
+    urllib.request.urlopen(put_req, timeout=10)
 
 
 def _validate_url(url, required=False):
