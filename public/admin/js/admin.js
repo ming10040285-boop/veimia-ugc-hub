@@ -106,14 +106,15 @@ function adminApp() {
         const response = await fetch('/api/admin/products');
         if (response.ok) {
           const data = await response.json();
-          this.products = data.products || [];
+          // API returns {status: "success", data: [...]} 
+          this.products = data.data || data.products || [];
           return;
         }
       } catch (error) {
-        // API not available — fall back
+        console.error('Products API error:', error);
       }
 
-      // Fallback: load directly from config file
+      // Fallback: load directly from config file (cached, may be stale)
       try {
         const resp = await fetch('/config/products/library.json');
         if (resp.ok) {
@@ -960,20 +961,29 @@ function adminApp() {
       }
 
       this.productFormSuccess = this.productForm.isEditing ? '상품이 수정되었습니다.' : '상품이 등록되었습니다.';
-      setTimeout(() => { this.closeProductModal(); }, 1000);
 
-      // Try API in background (best-effort)
+      // Save to API (persistent GitHub storage)
       try {
         const apiPayload = { ...payload };
-        if (apiPayload.product_image_url && apiPayload.product_image_url.startsWith('data:')) {
-          apiPayload.product_image_url = '';
-        }
         const method = this.productForm.isEditing ? 'PUT' : 'POST';
-        const url = this.productForm.isEditing
-          ? `/api/admin/products/${this.productForm.product_id}`
-          : '/api/admin/products';
-        fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(apiPayload) }).catch(() => {});
-      } catch (e) {}
+        const response = await fetch('/api/admin/products', {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(apiPayload)
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          this.productFormSuccess = '';
+          this.productFormErrors = { ...this.productFormErrors, general: err.message || '저장에 실패했습니다.' };
+          return;
+        }
+      } catch (e) {
+        this.productFormSuccess = '';
+        this.productFormErrors = { ...this.productFormErrors, general: '네트워크 오류: ' + e.message };
+        return;
+      }
+
+      setTimeout(() => { this.closeProductModal(); }, 1000);
     },
 
     // =============================================
