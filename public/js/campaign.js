@@ -533,7 +533,7 @@
     var html = '';
     html += '<form id="registration-form" class="registration-form" novalidate>';
 
-    // Member type radio buttons (above Instagram ID field)
+    // Member type radio buttons (新用户/老用户)
     html += '<fieldset class="form-field form-field--radio" data-field="member_type" id="member-type-fieldset">';
     html += '<legend>' + t('member_type_label') + '</legend>';
     html += '<label class="form-field__radio-label">';
@@ -547,48 +547,62 @@
     html += '<span class="form-field__error"></span>';
     html += '</fieldset>';
 
-    // Instagram ID field
+    // Instagram ID
     html += '<div class="form-field" data-field="instagram_id">';
-    html += '<label for="field-instagram-id">' + t('instagram_id_label') + '</label>';
-    html += '<input type="text" id="field-instagram-id" name="instagram_id" maxlength="200" autocomplete="off">';
+    html += '<label for="field-instagram-id">Instagram ID</label>';
+    html += '<input type="text" id="field-instagram-id" name="instagram_id" maxlength="200" autocomplete="off" placeholder="@username">';
     html += '<span class="form-field__error"></span>';
     html += '</div>';
 
-    // Name field
+    // 姓名
     html += '<div class="form-field" data-field="name">';
-    html += '<label for="field-name">' + t('name_label') + '</label>';
+    html += '<label for="field-name">이름 (姓名)</label>';
     html += '<input type="text" id="field-name" name="name" maxlength="100" autocomplete="name">';
     html += '<span class="form-field__error"></span>';
     html += '</div>';
 
-    // Phone field
+    // 邮编
+    html += '<div class="form-field" data-field="postal_code">';
+    html += '<label for="field-postal-code">우편번호 (邮编)</label>';
+    html += '<input type="text" id="field-postal-code" name="postal_code" maxlength="10" autocomplete="postal-code">';
+    html += '<span class="form-field__error"></span>';
+    html += '</div>';
+
+    // 电话
     html += '<div class="form-field" data-field="phone">';
-    html += '<label for="field-phone">' + t('phone_label') + '</label>';
+    html += '<label for="field-phone">전화번호 (电话)</label>';
     html += '<input type="tel" id="field-phone" name="phone" maxlength="20" autocomplete="tel">';
     html += '<span class="form-field__error"></span>';
     html += '</div>';
 
-    // Address field
-    html += '<div class="form-field" data-field="address">';
-    html += '<label for="field-address">' + t('address_label') + '</label>';
-    html += '<input type="text" id="field-address" name="address" maxlength="300" autocomplete="street-address">';
+    // 州/省
+    html += '<div class="form-field" data-field="state">';
+    html += '<label for="field-state">시/도 (州/省)</label>';
+    html += '<input type="text" id="field-state" name="state" maxlength="100" autocomplete="address-level1">';
     html += '<span class="form-field__error"></span>';
     html += '</div>';
 
-    // Postal code field
-    html += '<div class="form-field" data-field="postal_code">';
-    html += '<label for="field-postal-code">' + t('postal_code_label') + '</label>';
-    html += '<input type="text" id="field-postal-code" name="postal_code" maxlength="10" autocomplete="postal-code">';
+    // 城市
+    html += '<div class="form-field" data-field="city">';
+    html += '<label for="field-city">시/군/구 (城市)</label>';
+    html += '<input type="text" id="field-city" name="city" maxlength="100" autocomplete="address-level2">';
+    html += '<span class="form-field__error"></span>';
+    html += '</div>';
+
+    // 详细地址
+    html += '<div class="form-field" data-field="address">';
+    html += '<label for="field-address">상세 주소 (详细地址)</label>';
+    html += '<input type="text" id="field-address" name="address" maxlength="300" autocomplete="street-address">';
     html += '<span class="form-field__error"></span>';
     html += '</div>';
 
     // Submit button
     html += '<button type="submit" class="btn btn--primary registration-form__submit">' + t('submit_button') + '</button>';
 
-    // Consent notice (simple text below submit button)
+    // Consent notice
     html += '<p class="consent-notice" style="text-align:center;font-size:0.8rem;color:#888;margin-top:12px;">이벤트에 참여하시는 경우, 베이미아의 브랜드 홍보 및 마케팅 활동을 위한 콘텐츠 활용에 동의하신 것으로 간주됩니다.</p>';
 
-    // Hidden consent field (always true since user submits = agrees)
+    // Hidden fields
     html += '<input type="hidden" id="field-consent" name="consent" value="true">';
 
     // Message area for success/error feedback
@@ -666,16 +680,20 @@
     // Validate text fields
     var instagramId = (document.getElementById('field-instagram-id').value || '').trim();
     var name = (document.getElementById('field-name').value || '').trim();
-    var phone = (document.getElementById('field-phone').value || '').trim();
-    var address = (document.getElementById('field-address').value || '').trim();
     var postalCode = (document.getElementById('field-postal-code').value || '').trim();
+    var phone = (document.getElementById('field-phone').value || '').trim();
+    var state = (document.getElementById('field-state').value || '').trim();
+    var city = (document.getElementById('field-city').value || '').trim();
+    var address = (document.getElementById('field-address').value || '').trim();
     var consent = true; // Consent is implicit by submitting the form
 
     if (!instagramId || instagramId.length > 200) markInvalid('instagram_id');
     if (!name || name.length > 100) markInvalid('name');
-    if (!phone || phone.length > 20) markInvalid('phone');
-    if (!address || address.length > 300) markInvalid('address');
     if (!postalCode || postalCode.length > 10) markInvalid('postal_code');
+    if (!phone || phone.length > 20) markInvalid('phone');
+    if (!state || state.length > 100) markInvalid('state');
+    if (!city || city.length > 100) markInvalid('city');
+    if (!address || address.length > 300) markInvalid('address');
 
     // Validate size and color from existing dropdowns
     var selectedSize = sizeSelect ? sizeSelect.value : '';
@@ -713,9 +731,11 @@
       selected_color: selectedColor,
       instagram_id: instagramId,
       name: name,
-      phone: phone,
-      address: address,
       postal_code: postalCode,
+      phone: phone,
+      state: state,
+      city: city,
+      address: address,
       consent: true
     };
   }

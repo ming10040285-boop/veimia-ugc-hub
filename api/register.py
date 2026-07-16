@@ -381,25 +381,27 @@ def persist_registration(body):
 
     # Serialize registration as row with 12 columns
     # Order: timestamp, campaign_id, product_id, selected_size, selected_color,
-    #         instagram_id, name, phone, address, postal_code, consent_status, member_type
+    #         instagram_id, name, postal_code, phone, state, city, address, consent_status, member_type
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     row_data = [
         timestamp,
         body.get("campaign_id", ""),
-        body.get("product_id", ""),           # Internal identifier
-        body.get("selected_size", ""),         # Internal identifier
-        body.get("selected_color", ""),        # Internal identifier
+        body.get("product_id", ""),
+        body.get("selected_size", ""),
+        body.get("selected_color", ""),
         body.get("instagram_id", ""),
         body.get("name", ""),
-        body.get("phone", ""),
-        body.get("address", ""),
         body.get("postal_code", ""),
+        body.get("phone", ""),
+        body.get("state", ""),
+        body.get("city", ""),
+        body.get("address", ""),
         "true",                                # consent_status
-        body.get("member_type", ""),           # member_type ("new" or "returning")
+        body.get("member_type", ""),
         # --- Management columns (empty, for manual use in Sheets) ---
-        "",                                    # 合作状态 (待审核/已寄样/已发帖/完成)
-        "",                                    # Creator等级 (新人/优质/核心)
+        "",                                    # 合作状态
+        "",                                    # Creator等级
         "",                                    # 历史合作次数
         "",                                    # 内容质量评分
         "",                                    # 发帖链接
