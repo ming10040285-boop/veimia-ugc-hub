@@ -74,6 +74,20 @@
       "available_colors": [
         "黄色"
       ]
+    },
+    {
+      "product_id": "prod_d4211c402e8d",
+      "product_name": "11",
+      "product_image_url": "https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/uploads/ugc/e9e06b66-b393-4ef1-9e4f-737fcb02219b.png",
+      "product_detail_url": "https://veimia.co.kr/products/uv-protection-cooling-lightweight-shirts-1012015734",
+      "size_guide_url": "https://veimia.co.kr/products/uv-protection-cooling-lightweight-shirts-1012015734",
+      "short_description": "11111",
+      "available_sizes": [
+        "S"
+      ],
+      "available_colors": [
+        "黄色"
+      ]
     }
   ]
 }
