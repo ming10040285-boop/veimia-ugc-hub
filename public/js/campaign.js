@@ -581,7 +581,7 @@
     html += '<button type="submit" class="btn btn--primary registration-form__submit">' + t('submit_button') + '</button>';
 
     // Consent notice (simple text below submit button)
-    html += '<p class="consent-notice" style="text-align:center;font-size:0.8rem;color:#888;margin-top:12px;">参与活动即同意品牌方用来宣传与品牌推广使用。</p>';
+    html += '<p class="consent-notice" style="text-align:center;font-size:0.8rem;color:#888;margin-top:12px;">이벤트에 참여하시는 경우, 베이미아의 브랜드 홍보 및 마케팅 활동을 위한 콘텐츠 활용에 동의하신 것으로 간주됩니다.</p>';
 
     // Hidden consent field (always true since user submits = agrees)
     html += '<input type="hidden" id="field-consent" name="consent" value="true">';
