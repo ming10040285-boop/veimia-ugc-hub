@@ -60,5 +60,20 @@
       "frontend_behavior": "Buttons hidden for null, invalid scheme, or URLs exceeding 2048 chars"
     }
   },
-  "products": []
+  "products": [
+    {
+      "product_id": "prod_8425f833e6ab",
+      "product_name": "1",
+      "product_image_url": "https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/uploads/ugc/5e340582-1541-46c0-b36d-de48d3d65865.png",
+      "product_detail_url": "https://veimia.co.kr/products/uv-protection-cooling-lightweight-shirts-1012015734",
+      "size_guide_url": "https://veimia.co.kr/products/uv-protection-cooling-lightweight-shirts-1012015734",
+      "short_description": "1",
+      "available_sizes": [
+        "S"
+      ],
+      "available_colors": [
+        "黄色"
+      ]
+    }
+  ]
 }
