@@ -625,6 +625,37 @@ function adminApp() {
     },
 
     /**
+     * Set the current campaign as the active one displayed on the homepage.
+     * Updates /public/config/current.json via the save API.
+     */
+    async setAsCurrentCampaign() {
+      this.campaignError = '';
+      this.campaignSuccess = '';
+
+      if (!this.editingCampaign || !this.editingCampaign.campaign_id) return;
+
+      try {
+        const response = await fetch('/api/admin/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: 'public/config/current.json',
+            content: { campaign_id: this.editingCampaign.campaign_id }
+          })
+        });
+
+        if (response.ok) {
+          this.campaignSuccess = '已设为当前活动！前端首页将展示此活动（约 30 秒后生效）。';
+        } else {
+          const err = await response.json().catch(() => ({}));
+          this.campaignError = err.message || '设置失败。';
+        }
+      } catch (error) {
+        this.campaignError = '网络错误: ' + (error.message || '设置失败');
+      }
+    },
+
+    /**
      * Delete a campaign
      * @param {string} campaignId
      */
