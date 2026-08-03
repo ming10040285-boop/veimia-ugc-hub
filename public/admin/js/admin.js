@@ -1,4 +1,4 @@
-/**
+﻿/**
  * VEIMIA UGC Hub Admin Panel - Alpine.js Application
  * 
  * Root application state management using Alpine.js.
@@ -66,15 +66,15 @@ function adminApp() {
      * Loads initial data from config files.
      */
     async init() {
-      this.statusMessage = '로딩 중...';
+      this.statusMessage = '加载中...';
       try {
         this.loadSettings();
         await this.loadCampaigns();
         await this.loadProducts();
-        this.statusMessage = '준비 완료';
+        this.statusMessage = '就绪';
       } catch (error) {
         console.error('Admin init error:', error);
-        this.statusMessage = '데이터 로딩 실패';
+        this.statusMessage = '数据加载失败';
       }
     },
 
@@ -176,13 +176,13 @@ function adminApp() {
         } else {
           this.registrations = [];
           this.registrationsCount = 0;
-          this.registrationsWarning = '신청 데이터를 불러오는데 실패했습니다.';
+          this.registrationsWarning = '加载申请数据失败。';
         }
       } catch (error) {
         console.error('Failed to load registrations:', error);
         this.registrations = [];
         this.registrationsCount = 0;
-        this.registrationsWarning = '네트워크 오류가 발생했습니다.';
+        this.registrationsWarning = '网络错误。';
       } finally {
         this.registrationsLoading = false;
       }
@@ -237,11 +237,11 @@ function adminApp() {
 
       // Validate required fields
       if (!this.newCampaign.campaign_name.trim()) {
-        this.createCampaignError = '캠페인 이름을 입력해 주세요.';
+        this.createCampaignError = '请输入活动名称。';
         return;
       }
       if (!this.newCampaign.product_mode) {
-        this.createCampaignError = '상품 모드를 선택해 주세요.';
+        this.createCampaignError = '请选择商品模式。';
         return;
       }
 
@@ -290,7 +290,7 @@ function adminApp() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      this.statusMessage = '캠페인 생성 완료! JSON 파일을 config/campaigns/에 넣고 재배포하세요.';
+      this.statusMessage = '活动创建成功！ 请将 JSON 文件放入 config/campaigns/ 后重新部署。';
 
       // Also try API in background (best-effort, don't block)
       try {
@@ -364,7 +364,7 @@ function adminApp() {
     onProductModeChange(newMode) {
       if (this.assignedProducts.length > 0 && newMode !== this._previousProductMode) {
         const confirmed = confirm(
-          '상품 모드를 변경하면 현재 배정된 상품이 모두 제거됩니다. 계속하시겠습니까?'
+          '切换商品模式将移除当前已分配的所有商品。是否继续？'
         );
         if (confirmed) {
           this.assignedProducts = [];
@@ -427,7 +427,7 @@ function adminApp() {
         } else {
           // Add if under limit (max 50)
           if (this.assignedProducts.length >= 50) {
-            this.campaignError = '최대 50개 상품까지 등록 가능합니다.';
+            this.campaignError = '最多可分配 50 个商品。';
             return;
           }
           this.assignedProducts.push({
@@ -544,16 +544,16 @@ function adminApp() {
         });
 
         if (response.ok) {
-          this.campaignSuccess = '저장 완료! 약 30초 후 전면 페이지에 반영됩니다.';
+          this.campaignSuccess = '保存成功！约 30 秒后前端页面将更新。';
           // Update local state
           const idx = this.campaigns.findIndex(c => c.campaign_id === this.editingCampaign.campaign_id);
           if (idx >= 0) this.campaigns[idx] = campaignData;
         } else {
           const err = await response.json().catch(() => ({}));
-          this.campaignError = err.message || '저장에 실패했습니다.';
+          this.campaignError = err.message || '保存失败。';
         }
       } catch (error) {
-        this.campaignError = '네트워크 오류: ' + (error.message || '저장 실패') + ' — 이미지가 너무 큰 경우 이미지 URL을 사용해 주세요.';
+        this.campaignError = '网络错误: ' + (error.message || '保存失败') + ' — 如图片过大，请使用图片 URL。';
       }
     },
 
@@ -595,7 +595,7 @@ function adminApp() {
 
       // Check if products are assigned
       if (this.assignedProducts.length === 0) {
-        this.campaignError = '최소 1개의 상품을 등록해 주세요.';
+        this.campaignError = '请至少分配 1 个商品。';
         return;
       }
 
@@ -612,15 +612,15 @@ function adminApp() {
 
         if (response.ok) {
           this.editingCampaign.status = 'published';
-          this.campaignSuccess = '캠페인이 게시되었습니다.';
+          this.campaignSuccess = '活动已发布。';
           await this.loadCampaigns();
         } else {
           const errorData = await response.json().catch(() => ({}));
-          this.campaignError = errorData.message || '게시에 실패했습니다.';
+          this.campaignError = errorData.message || '发布失败。';
         }
       } catch (error) {
         console.error('Publish campaign error:', error);
-        this.campaignError = '네트워크 오류가 발생했습니다.';
+        this.campaignError = '网络错误。';
       }
     },
 
@@ -629,7 +629,7 @@ function adminApp() {
      * @param {string} campaignId
      */
     async deleteCampaign(campaignId) {
-      if (!confirm('이 캠페인을 삭제하시겠습니까?')) return;
+      if (!confirm('确定删除该活动吗？')) return;
 
       try {
         const response = await fetch(`/api/admin/campaigns/${campaignId}`, {
@@ -729,11 +729,11 @@ function adminApp() {
       const trimmed = (size || '').trim();
       if (!trimmed) return;
       if (this.productForm.available_sizes.length >= 20) {
-        this.productFormErrors = { ...this.productFormErrors, available_sizes: '최대 20개까지 설정 가능합니다.' };
+        this.productFormErrors = { ...this.productFormErrors, available_sizes: '最多可设置 20 个。' };
         return;
       }
       if (this.productForm.available_sizes.includes(trimmed)) {
-        this.productFormErrors = { ...this.productFormErrors, available_sizes: '이미 추가된 사이즈입니다.' };
+        this.productFormErrors = { ...this.productFormErrors, available_sizes: '该尺码已添加。' };
         return;
       }
       this.productForm.available_sizes.push(trimmed);
@@ -757,11 +757,11 @@ function adminApp() {
       const trimmed = (color || '').trim();
       if (!trimmed) return;
       if (this.productForm.available_colors.length >= 30) {
-        this.productFormErrors = { ...this.productFormErrors, available_colors: '최대 30개까지 설정 가능합니다.' };
+        this.productFormErrors = { ...this.productFormErrors, available_colors: '最多可设置 30 个。' };
         return;
       }
       if (this.productForm.available_colors.includes(trimmed)) {
-        this.productFormErrors = { ...this.productFormErrors, available_colors: '이미 추가된 컬러입니다.' };
+        this.productFormErrors = { ...this.productFormErrors, available_colors: '该颜色已添加。' };
         return;
       }
       this.productForm.available_colors.push(trimmed);
@@ -788,9 +788,9 @@ function adminApp() {
         return;
       }
       if (!this.isValidUrl(value)) {
-        this.productFormErrors = { ...this.productFormErrors, [field]: 'http:// 또는 https://로 시작하는 유효한 URL을 입력하세요.' };
+        this.productFormErrors = { ...this.productFormErrors, [field]: '请输入以 http:// 或 https:// 开头的有效 URL。' };
       } else if (value.length > 2048) {
-        this.productFormErrors = { ...this.productFormErrors, [field]: 'URL은 최대 2048자까지 입력 가능합니다.' };
+        this.productFormErrors = { ...this.productFormErrors, [field]: 'URL 最长 2048 个字符。' };
       } else {
         this.productFormErrors = { ...this.productFormErrors, [field]: '' };
       }
@@ -824,7 +824,7 @@ function adminApp() {
       // Validate format
       const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
       if (!validTypes.includes(file.type)) {
-        this.productFormErrors = { ...this.productFormErrors, imageUpload: 'PNG, JPG, WebP 형식만 지원합니다.' };
+        this.productFormErrors = { ...this.productFormErrors, imageUpload: '仅支持 PNG、JPG、WebP 格式。' };
         event.target.value = '';
         return;
       }
@@ -832,7 +832,7 @@ function adminApp() {
       // Validate size (5MB max)
       const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
-        this.productFormErrors = { ...this.productFormErrors, imageUpload: '파일 크기는 최대 5MB까지 허용됩니다.' };
+        this.productFormErrors = { ...this.productFormErrors, imageUpload: '文件大小不能超过 5MB。' };
         event.target.value = '';
         return;
       }
@@ -861,18 +861,18 @@ function adminApp() {
             this.productFormErrors = { ...this.productFormErrors, product_image_url: '' };
           } else {
             const err = await response.json().catch(() => ({}));
-            this.productFormErrors = { ...this.productFormErrors, imageUpload: err.error || '업로드에 실패했습니다.' };
+            this.productFormErrors = { ...this.productFormErrors, imageUpload: err.error || '上传失败。' };
           }
         } catch (error) {
           if (error.name === 'AbortError') {
-            this.productFormErrors = { ...this.productFormErrors, imageUpload: '업로드 시간이 초과되었습니다.' };
+            this.productFormErrors = { ...this.productFormErrors, imageUpload: '上传超时。' };
           } else {
-            this.productFormErrors = { ...this.productFormErrors, imageUpload: '네트워크 오류가 발생했습니다.' };
+            this.productFormErrors = { ...this.productFormErrors, imageUpload: '网络错误。' };
           }
         }
       };
       reader.onerror = () => {
-        this.productFormErrors = { ...this.productFormErrors, imageUpload: '파일 읽기에 실패했습니다.' };
+        this.productFormErrors = { ...this.productFormErrors, imageUpload: '文件读取失败。' };
       };
       reader.readAsDataURL(file);
       event.target.value = '';
@@ -889,52 +889,52 @@ function adminApp() {
       const errors = {};
 
       if (!this.productForm.product_name.trim()) {
-        errors.product_name = '상품 이름을 입력해 주세요.';
+        errors.product_name = '请输入商品名称。';
       } else if (this.productForm.product_name.length > 200) {
-        errors.product_name = '상품 이름은 최대 200자까지 입력 가능합니다.';
+        errors.product_name = '商品名称最多 200 个字符。';
       }
 
       if (!this.productForm.product_image_url.trim()) {
-        errors.product_image_url = '상품 이미지 URL을 입력하거나 이미지를 업로드해 주세요.';
+        errors.product_image_url = '请输入商品图片 URL 或上传图片。';
       } else if (!this.isValidUrl(this.productForm.product_image_url)) {
-        errors.product_image_url = 'http:// 또는 https://로 시작하는 유효한 URL을 입력하세요.';
+        errors.product_image_url = '请输入以 http:// 或 https:// 开头的有效 URL。';
       }
 
       if (!this.productForm.short_description.trim()) {
-        errors.short_description = '간단 설명을 입력해 주세요.';
+        errors.short_description = '请输入简短描述。';
       } else if (this.productForm.short_description.length > 500) {
-        errors.short_description = '간단 설명은 최대 500자까지 입력 가능합니다.';
+        errors.short_description = '简短描述最多 500 个字符。';
       }
 
       // Validate optional URL fields
       if (this.productForm.product_detail_url.trim()) {
         if (!this.isValidUrl(this.productForm.product_detail_url)) {
-          errors.product_detail_url = 'http:// 또는 https://로 시작하는 유효한 URL을 입력하세요.';
+          errors.product_detail_url = '请输入以 http:// 或 https:// 开头的有效 URL。';
         } else if (this.productForm.product_detail_url.length > 2048) {
-          errors.product_detail_url = 'URL은 최대 2048자까지 입력 가능합니다.';
+          errors.product_detail_url = 'URL 最长 2048 个字符。';
         }
       }
 
       if (this.productForm.size_guide_url.trim()) {
         if (!this.isValidUrl(this.productForm.size_guide_url)) {
-          errors.size_guide_url = 'http:// 또는 https://로 시작하는 유효한 URL을 입력하세요.';
+          errors.size_guide_url = '请输入以 http:// 或 https:// 开头的有效 URL。';
         } else if (this.productForm.size_guide_url.length > 2048) {
-          errors.size_guide_url = 'URL은 최대 2048자까지 입력 가능합니다.';
+          errors.size_guide_url = 'URL 最长 2048 个字符。';
         }
       }
 
       // Validate sizes
       if (this.productForm.available_sizes.length === 0) {
-        errors.available_sizes = '최소 1개의 사이즈를 추가해 주세요.';
+        errors.available_sizes = '请至少添加 1 个尺码。';
       } else if (this.productForm.available_sizes.length > 20) {
-        errors.available_sizes = '사이즈는 최대 20개까지 설정 가능합니다.';
+        errors.available_sizes = '尺码最多 20 个。';
       }
 
       // Validate colors
       if (this.productForm.available_colors.length === 0) {
-        errors.available_colors = '최소 1개의 컬러를 추가해 주세요.';
+        errors.available_colors = '请至少添加 1 个颜色。';
       } else if (this.productForm.available_colors.length > 30) {
-        errors.available_colors = '컬러는 최대 30개까지 설정 가능합니다.';
+        errors.available_colors = '颜色最多 30 个。';
       }
 
       if (Object.keys(errors).length > 0) {
@@ -962,7 +962,7 @@ function adminApp() {
         this.products.push(payload);
       }
 
-      this.productFormSuccess = this.productForm.isEditing ? '상품이 수정되었습니다.' : '상품이 등록되었습니다.';
+      this.productFormSuccess = this.productForm.isEditing ? '商品已修改。' : '商品已添加。';
 
       // Save to API (persistent GitHub storage)
       try {
@@ -976,12 +976,12 @@ function adminApp() {
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
           this.productFormSuccess = '';
-          this.productFormErrors = { ...this.productFormErrors, general: err.message || '저장에 실패했습니다.' };
+          this.productFormErrors = { ...this.productFormErrors, general: err.message || '保存失败。' };
           return;
         }
       } catch (e) {
         this.productFormSuccess = '';
-        this.productFormErrors = { ...this.productFormErrors, general: '네트워크 오류: ' + e.message };
+        this.productFormErrors = { ...this.productFormErrors, general: '网络错误: ' + e.message };
         return;
       }
 
@@ -1071,11 +1071,11 @@ function adminApp() {
           const data = await response.json();
           this.ugcPosts = (data.ugc_gallery || []).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
         } else {
-          this.ugcError = 'UGC 게시물을 불러오는데 실패했습니다. 캠페인 파일을 확인하세요.';
+          this.ugcError = '加载 UGC 帖子失败，请检查活动文件。';
         }
       } catch (error) {
         console.error('Failed to load UGC posts:', error);
-        this.ugcError = '네트워크 오류가 발생했습니다.';
+        this.ugcError = '网络错误。';
       }
     },
 
@@ -1136,25 +1136,25 @@ function adminApp() {
 
       // Validate: at least image_url must be provided
       if (!imageUrl) {
-        this.ugcFormError = '이미지 URL을 입력해 주세요.';
+        this.ugcFormError = '请输入图片 URL。';
         return;
       }
 
       // Validate Instagram URL format if provided
       if (sourceUrl && !this.isValidInstagramUrl(sourceUrl)) {
-        this.ugcFormError = '유효하지 않은 Instagram URL입니다. https://www.instagram.com/p/ 또는 https://instagram.com/p/ 로 시작해야 합니다.';
+        this.ugcFormError = '无效的 Instagram URL。 必须以 https://www.instagram.com/p/ 或 https://instagram.com/p/ 开头。';
         return;
       }
 
       // Validate image_url format (HTTPS only, no data: URIs or Base64)
       if (!this.validateImageUrl(imageUrl)) {
-        this.ugcFormError = 'HTTPS URL만 허용됩니다. data: URI 또는 Base64 데이터는 사용할 수 없습니다.';
+        this.ugcFormError = '仅允许 HTTPS URL，不支持 data: URI 或 Base64 数据。';
         return;
       }
 
       // Enforce 20-post maximum
       if (this.ugcPosts.length >= 20) {
-        this.ugcFormError = '최대 20개의 UGC 게시물만 등록할 수 있습니다.';
+        this.ugcFormError = '最多可添加 20 条 UGC 帖子。';
         return;
       }
 
@@ -1169,7 +1169,7 @@ function adminApp() {
       this.ugcPosts.push(newPost);
       this.newUGCPost = { source_url: '', image_url: '' };
       this.showAddUGC = false;
-      this.ugcSuccess = 'UGC 게시물이 추가되었습니다. 저장 중...';
+      this.ugcSuccess = 'UGC 帖子已添加，保存中...';
       // Save to GitHub
       await this._saveUGCToGitHub();
     },
@@ -1179,7 +1179,7 @@ function adminApp() {
      * @param {string} postId - The ID of the post to remove
      */
     async removeUGCPost(postId) {
-      if (!confirm('이 UGC 게시물을 삭제하시겠습니까?')) return;
+      if (!confirm('确定删除该 UGC 帖子吗？')) return;
 
       this.ugcError = '';
       this.ugcSuccess = '';
@@ -1190,7 +1190,7 @@ function adminApp() {
       // Update display_order
       this.ugcPosts.forEach((p, i) => { p.display_order = i + 1; });
       
-      this.ugcSuccess = 'UGC 게시물이 삭제되었습니다. 저장 중...';
+      this.ugcSuccess = 'UGC 帖子已删除，保存中...';
       // Save to GitHub
       await this._saveUGCToGitHub();
     },
@@ -1217,7 +1217,7 @@ function adminApp() {
         // Load the full campaign from read_campaign API (no cache)
         const resp = await fetch(`/api/admin/read_campaign?id=${this.ugcSelectedCampaignId}`);
         if (!resp.ok) {
-          this.ugcError = '캠페인 데이터를 불러올 수 없습니다.';
+          this.ugcError = '无法加载活动数据。';
           return;
         }
         const campaignData = await resp.json();
@@ -1241,13 +1241,13 @@ function adminApp() {
         });
         
         if (saveResp.ok) {
-          this.ugcSuccess = 'UGC 갤러리가 저장되었습니다. 약 30초 후 전면 페이지에 반영됩니다.';
+          this.ugcSuccess = 'UGC 画廊已保存，约 30 秒后前端页面将更新。';
         } else {
           const err = await saveResp.json().catch(() => ({}));
-          this.ugcError = err.message || 'UGC 저장에 실패했습니다.';
+          this.ugcError = err.message || 'UGC 保存失败。';
         }
       } catch (e) {
-        this.ugcError = '네트워크 오류: ' + e.message;
+        this.ugcError = '网络错误: ' + e.message;
       }
     },
 
@@ -1340,7 +1340,7 @@ function adminApp() {
       this.settingsSuccess = '';
       try {
         localStorage.setItem('veimia_ugc_settings', JSON.stringify(this.settings));
-        this.settingsSuccess = '설정이 저장되었습니다.';
+        this.settingsSuccess = '设置已保存。';
         setTimeout(() => { this.settingsSuccess = ''; }, 3000);
       } catch (e) {
         console.error('Failed to save settings:', e);
@@ -1422,7 +1422,7 @@ function adminApp() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      this.campaignSuccess = 'JSON 파일이 다운로드되었습니다. public/config/campaigns/ 폴더에 교체 후 재배포하세요.';
+      this.campaignSuccess = 'JSON 文件已下载。请替换 public/config/campaigns/ 文件夹中的对应文件后重新部署。';
     },
 
     /**
@@ -1482,7 +1482,7 @@ function adminApp() {
       // Validate MIME type
       const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
       if (!validTypes.includes(file.type)) {
-        this.ugcUploadError = '지원하지 않는 형식입니다. PNG, JPEG, WebP 파일만 업로드할 수 있습니다.';
+        this.ugcUploadError = '不支持该格式。仅可上传 PNG、JPEG、WebP 文件。';
         event.target.value = '';
         return;
       }
@@ -1501,7 +1501,7 @@ function adminApp() {
             const base64 = dataUrl.split(',')[1];
             resolve(base64);
           };
-          reader.onerror = () => reject(new Error('파일 읽기에 실패했습니다.'));
+          reader.onerror = () => reject(new Error('文件读取失败。'));
           reader.readAsDataURL(file);
         });
 
@@ -1526,13 +1526,13 @@ function adminApp() {
           this.newUGCPost.image_url = result.image_url;
         } else {
           const errorData = await response.json().catch(() => ({}));
-          this.ugcUploadError = errorData.error || '업로드에 실패했습니다.';
+          this.ugcUploadError = errorData.error || '上传失败。';
         }
       } catch (error) {
         if (error.name === 'AbortError') {
-          this.ugcUploadError = '업로드 시간이 초과되었습니다. 다시 시도해 주세요.';
+          this.ugcUploadError = '上传超时，请重试。';
         } else {
-          this.ugcUploadError = error.message || '네트워크 오류가 발생했습니다.';
+          this.ugcUploadError = error.message || '网络错误。';
         }
       } finally {
         this.ugcUploading = false;
@@ -1551,7 +1551,7 @@ function adminApp() {
 
       const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
       if (!validTypes.includes(file.type)) {
-        this.campaignError = 'PNG, JPG, WebP 형식만 지원합니다.';
+        this.campaignError = '仅支持 PNG、JPG、WebP 格式。';
         event.target.value = '';
         return;
       }
@@ -1576,10 +1576,10 @@ function adminApp() {
             this.editingCampaign.hero_image_url = result.image_url;
           } else {
             const err = await response.json().catch(() => ({}));
-            this.campaignError = err.error || '업로드에 실패했습니다.';
+            this.campaignError = err.error || '上传失败。';
           }
         } catch (error) {
-          this.campaignError = error.name === 'AbortError' ? '업로드 시간이 초과되었습니다.' : '네트워크 오류가 발생했습니다.';
+          this.campaignError = error.name === 'AbortError' ? '上传超时。' : '网络错误。';
         }
       };
       reader.readAsDataURL(file);
@@ -1596,7 +1596,7 @@ function adminApp() {
 
       const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
       if (!validTypes.includes(file.type)) {
-        this.createCampaignError = 'PNG, JPG, WebP 형식만 지원합니다.';
+        this.createCampaignError = '仅支持 PNG、JPG、WebP 格式。';
         event.target.value = '';
         return;
       }
@@ -1621,10 +1621,10 @@ function adminApp() {
             this.newCampaign.hero_image_url = result.image_url;
           } else {
             const err = await response.json().catch(() => ({}));
-            this.createCampaignError = err.error || '업로드에 실패했습니다.';
+            this.createCampaignError = err.error || '上传失败。';
           }
         } catch (error) {
-          this.createCampaignError = error.name === 'AbortError' ? '업로드 시간이 초과되었습니다.' : '네트워크 오류가 발생했습니다.';
+          this.createCampaignError = error.name === 'AbortError' ? '上传超时。' : '网络错误。';
         }
       };
       reader.readAsDataURL(file);
@@ -1658,7 +1658,7 @@ function adminApp() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      this.ugcSuccess = 'JSON 파일이 다운로드되었습니다. demo.json의 ugc_gallery에 붙여넣기 후 재배포하세요.';
+      this.ugcSuccess = 'JSON 文件已下载。请将内容粘贴到 demo.json 的 ugc_gallery 字段后重新部署。';
     },
 
     // =============================================
@@ -1674,7 +1674,7 @@ function adminApp() {
       if (!isoDate) return '';
       try {
         const date = new Date(isoDate);
-        return date.toLocaleDateString('ko-KR', {
+        return date.toLocaleDateString('zh-CN', {
           year: 'numeric',
           month: '2-digit',
           day: '2-digit'
