@@ -86,7 +86,13 @@
   function renderIntroduction(config) {
     var introText = document.getElementById('introduction-text');
     if (introText && config.introduction_text) {
-      introText.textContent = config.introduction_text;
+      // Preserve line breaks by converting \n to <br>
+      var escaped = config.introduction_text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+      introText.innerHTML = escaped;
     }
   }
 
