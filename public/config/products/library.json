@@ -88,6 +88,25 @@
       "available_colors": [
         "黄色"
       ]
+    },
+    {
+      "product_id": "prod_305f28987615",
+      "product_name": "VEIMIA 여름 구원자 나시",
+      "product_image_url": "https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/uploads/ugc/85e427a5-00fd-4fd3-9813-c80a811b8dc7.png",
+      "product_detail_url": "https://veimia.co.kr/products/camisoles-1009751874",
+      "size_guide_url": "https://veimia.co.kr/products/camisoles-1009751874",
+      "short_description": "뱃살 커버 편안한 슬림핏 고탄력 서포트 가슴 처짐 방지 데일리 브라캡 나시 추천",
+      "available_sizes": [
+        "M",
+        "L",
+        "XL",
+        "2XL",
+        "3XL"
+      ],
+      "available_colors": [
+        "블랙",
+        "화이트"
+      ]
     }
   ]
 }
