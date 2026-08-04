@@ -83,19 +83,43 @@ function adminApp() {
      * Tries API first, falls back to loading known campaign configs directly.
      */
     async loadCampaigns() {
-      // Load directly from static config file (reliable across all deploy modes)
+      // Try API first
       try {
-        const demoResp = await fetch('/config/campaigns/demo.json');
-        if (demoResp.ok) {
-          const demoData = await demoResp.json();
-          this.campaigns = [demoData];
-        } else {
-          this.campaigns = [];
+        const response = await fetch('/api/admin/campaigns');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.campaigns && data.campaigns.length > 0) {
+            this.campaigns = data.campaigns;
+            return;
+          }
         }
-      } catch (error) {
-        console.error('Failed to load campaigns:', error);
-        this.campaigns = [];
+      } catch (e) {}
+
+      // Fallback: load campaign index file
+      let knownIds = [];
+      try {
+        const indexResp = await fetch('/config/campaigns/index.json?t=' + Date.now());
+        if (indexResp.ok) {
+          knownIds = await indexResp.json();
+        }
+      } catch (e) {}
+
+      // If no index, try common IDs
+      if (knownIds.length === 0) {
+        knownIds = ['demo', 'UGC-4'];
       }
+
+      const campaigns = [];
+      for (const id of knownIds) {
+        try {
+          const resp = await fetch('/config/campaigns/' + id + '.json?t=' + Date.now());
+          if (resp.ok) {
+            const data = await resp.json();
+            campaigns.push(data);
+          }
+        } catch (e) {}
+      }
+      this.campaigns = campaigns;
     },
 
     /**
@@ -279,18 +303,32 @@ function adminApp() {
       };
       this.showCreateCampaign = false;
 
-      // Auto-download the JSON for deployment
-      const blob = new Blob([JSON.stringify(campaignData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = campaignId + '.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      this.statusMessage = '活动创建成功！';
 
-      this.statusMessage = '活动创建成功！ 请将 JSON 文件放入 config/campaigns/ 后重新部署。';
+      // Save campaign JSON to GitHub
+      try {
+        await fetch('/api/admin/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: 'public/config/campaigns/' + campaignId + '.json',
+            content: campaignData
+          })
+        });
+      } catch (e) {}
+
+      // Update campaign index
+      try {
+        const allIds = this.campaigns.map(c => c.campaign_id);
+        await fetch('/api/admin/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: 'public/config/campaigns/index.json',
+            content: allIds
+          })
+        });
+      } catch (e) {}
 
       // Also try API in background (best-effort, don't block)
       try {
