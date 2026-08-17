@@ -86,26 +86,34 @@ def _handle_post(handler):
             )
 
         rows = worksheet.get_all_values()
+        content_rows = [
+            row for row in rows
+            if any(str(value).strip() for value in row)
+        ]
         initialized = False
         if action == "initialize":
-            if not rows:
+            if not content_rows:
                 worksheet.append_row(HEADERS, value_input_option="RAW")
-                rows = [HEADERS]
+                content_rows = [HEADERS]
                 initialized = True
-            elif [str(value).strip().lower() for value in rows[0]] != HEADERS:
-                _respond(handler, 409, {
-                    "status": "error",
-                    "message": "工作表已有数据且表头不是系统标准格式。为避免覆盖数据，未执行初始化。",
-                })
-                return
+            else:
+                actual_headers = [str(value).strip().lower() for value in content_rows[0]]
+                while actual_headers and not actual_headers[-1]:
+                    actual_headers.pop()
+                if actual_headers != HEADERS:
+                    _respond(handler, 409, {
+                        "status": "error",
+                        "message": "工作表已有数据且表头不是系统标准格式。为避免覆盖数据，未执行初始化。",
+                    })
+                    return
 
         _respond(handler, 200, {
             "status": "success",
             "message": "表格连接成功。" if not initialized else "连接成功，标准表头已创建。",
             "spreadsheet_title": spreadsheet.title,
             "worksheet_title": worksheet.title,
-            "row_count": max(len(rows) - 1, 0),
-            "headers": rows[0] if rows else [],
+            "row_count": max(len(content_rows) - 1, 0),
+            "headers": content_rows[0] if content_rows else [],
             "initialized": initialized,
         })
     except Exception as error:
