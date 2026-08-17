@@ -37,6 +37,11 @@ function adminApp() {
     registrationsLoading: false,
     showRegistrations: false,
 
+    // Campaign Google Sheet connection state
+    sheetConnectionLoading: false,
+    sheetConnectionMessage: '',
+    sheetConnectionOk: false,
+
     // Campaign management state
     editingCampaign: null,
     assignedProducts: [],
@@ -48,7 +53,9 @@ function adminApp() {
       hero_image_url: '',
       introduction_text: '',
       start_date_local: '',
-      end_date_local: ''
+      end_date_local: '',
+      google_sheet: '',
+      worksheet_name: 'Sheet1'
     },
     createCampaignError: '',
     campaignError: '',
@@ -253,6 +260,30 @@ function adminApp() {
     // Campaign Management Methods
     // =============================================
 
+    extractSpreadsheetId(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      const marker = '/spreadsheets/d/';
+      let id = raw;
+      if (raw.includes(marker)) {
+        id = raw.split(marker)[1].split('/')[0];
+      }
+      id = id.split('?')[0].split('#')[0].trim();
+      return /^[A-Za-z0-9_-]+$/.test(id) ? id : '';
+    },
+
+    buildRegistrationStorage(sheetValue, worksheetName) {
+      const spreadsheetId = this.extractSpreadsheetId(sheetValue);
+      if (!spreadsheetId) return null;
+      return {
+        provider: 'google_sheets',
+        spreadsheet_id: spreadsheetId,
+        worksheet_name: String(worksheetName || 'Sheet1').trim() || 'Sheet1',
+        schema_version: 2,
+        mode: 'dedicated'
+      };
+    },
+
     /**
      * Create a new campaign via POST /api/admin/campaigns
      */
@@ -271,6 +302,15 @@ function adminApp() {
 
       // Build complete campaign object locally
       const campaignId = this.newCampaign.campaign_id.trim() || ('campaign-' + Date.now());
+      const registrationStorage = this.buildRegistrationStorage(
+        this.newCampaign.google_sheet,
+        this.newCampaign.worksheet_name
+      );
+      if (this.newCampaign.google_sheet.trim() && !registrationStorage) {
+        this.createCampaignError = 'Google Sheet 链接或 ID 格式不正确。';
+        return;
+      }
+
       const campaignData = {
         campaign_id: campaignId,
         campaign_name: this.newCampaign.campaign_name.trim(),
@@ -284,7 +324,8 @@ function adminApp() {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         products: [],
-        ugc_gallery: []
+        ugc_gallery: [],
+        ...(registrationStorage ? { registration_storage: registrationStorage } : {})
       };
 
       // Add to local list immediately (works without API)
@@ -299,7 +340,9 @@ function adminApp() {
         hero_image_url: '',
         introduction_text: '',
         start_date_local: '',
-        end_date_local: ''
+        end_date_local: '',
+        google_sheet: '',
+        worksheet_name: 'Sheet1'
       };
       this.showCreateCampaign = false;
 
@@ -351,7 +394,19 @@ function adminApp() {
      * @param {Object} campaign - Campaign object to edit
      */
     openCampaignEdit(campaign) {
-      this.editingCampaign = { ...campaign };
+      const storage = campaign.registration_storage || {};
+      this.editingCampaign = {
+        ...campaign,
+        registration_storage: {
+          provider: 'google_sheets',
+          spreadsheet_id: storage.spreadsheet_id || storage.spreadsheet_url || '',
+          worksheet_name: storage.worksheet_name || 'Sheet1',
+          schema_version: 2,
+          mode: storage.spreadsheet_id || storage.spreadsheet_url ? 'dedicated' : 'legacy_shared'
+        }
+      };
+      this.sheetConnectionMessage = '';
+      this.sheetConnectionOk = false;
       this._previousProductMode = campaign.product_mode;
       
       // Convert ISO dates to datetime-local format for input fields
@@ -534,6 +589,38 @@ function adminApp() {
     // Campaign Save/Publish
     // =============================================
 
+    async testCampaignSheet(initialize = false) {
+      const storage = this.editingCampaign && this.editingCampaign.registration_storage;
+      const spreadsheetId = this.extractSpreadsheetId(storage && storage.spreadsheet_id);
+      if (!spreadsheetId) {
+        this.sheetConnectionOk = false;
+        this.sheetConnectionMessage = '请先填写有效的 Google Sheet 链接或 ID。';
+        return;
+      }
+
+      this.sheetConnectionLoading = true;
+      this.sheetConnectionMessage = initialize ? '正在初始化表头...' : '正在测试连接...';
+      try {
+        const response = await fetch('/api/admin/campaign-sheet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: initialize ? 'initialize' : 'test',
+            spreadsheet_id: spreadsheetId,
+            worksheet_name: storage.worksheet_name || 'Sheet1'
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        this.sheetConnectionOk = response.ok;
+        this.sheetConnectionMessage = data.message || (response.ok ? '表格连接成功。' : '表格连接失败。');
+      } catch (error) {
+        this.sheetConnectionOk = false;
+        this.sheetConnectionMessage = '网络错误：' + (error.message || '连接失败');
+      } finally {
+        this.sheetConnectionLoading = false;
+      }
+    },
+
     /**
      * Save campaign configuration (name, mode, market, hero, intro)
      */
@@ -541,9 +628,20 @@ function adminApp() {
       this.campaignError = '';
       this.campaignSuccess = '';
 
+      const storageInput = this.editingCampaign.registration_storage || {};
+      const registrationStorage = this.buildRegistrationStorage(
+        storageInput.spreadsheet_id,
+        storageInput.worksheet_name
+      );
+      if (String(storageInput.spreadsheet_id || '').trim() && !registrationStorage) {
+        this.campaignError = 'Google Sheet 链接或 ID 格式不正确。';
+        return;
+      }
+
       // Build full campaign data
       const campaignData = {
         ...this.editingCampaign,
+        ...(registrationStorage ? { registration_storage: registrationStorage } : {}),
         products: this.assignedProducts.map((p, i) => ({
           product_id: p.product_id,
           product_name: p.product_name,
@@ -568,6 +666,7 @@ function adminApp() {
       delete campaignData.start_date_local;
       delete campaignData.end_date_local;
       delete campaignData._configExpanded;
+      if (!registrationStorage) delete campaignData.registration_storage;
 
       // Save via GitHub API (always save as demo.json for the main campaign)
       const savePath = 'public/config/campaigns/' + (this.editingCampaign.campaign_id || 'demo') + '.json';

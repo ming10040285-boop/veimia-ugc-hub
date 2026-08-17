@@ -184,6 +184,26 @@
                 <input type="datetime-local" x-model="editingCampaign.end_date_local" @change="editingCampaign.end_date = new Date($event.target.value).toISOString()">
                 <span class="field-hint" x-show="editingCampaign.end_date" x-text="'保存值: ' + (editingCampaign.end_date || '')"></span>
               </div>
+
+              <div style="border-top:1px solid #e2e8f0; margin:20px 0 16px; padding-top:16px;">
+                <h4 style="margin:0 0 12px;">本活动 Google Sheet</h4>
+                <div class="form-group">
+                  <label>Google Sheet 链接或 Spreadsheet ID</label>
+                  <input type="text" x-model="editingCampaign.registration_storage.spreadsheet_id" placeholder="粘贴本次 UGC 活动的 Google Sheet 链接">
+                  <span class="field-hint">每个活动可以绑定不同表格；留空则继续使用旧的全局表格。</span>
+                </div>
+                <div class="form-group">
+                  <label>工作表名称</label>
+                  <input type="text" x-model="editingCampaign.registration_storage.worksheet_name" placeholder="Sheet1" maxlength="100">
+                </div>
+                <div class="form-actions" style="justify-content:flex-start; flex-wrap:wrap;">
+                  <button class="btn" @click="testCampaignSheet(false)" :disabled="sheetConnectionLoading">测试连接</button>
+                  <button class="btn" @click="testCampaignSheet(true)" :disabled="sheetConnectionLoading">初始化标准表头</button>
+                  <a class="btn" target="_blank" rel="noopener" x-show="extractSpreadsheetId(editingCampaign.registration_storage.spreadsheet_id)" :href="'https://docs.google.com/spreadsheets/d/' + extractSpreadsheetId(editingCampaign.registration_storage.spreadsheet_id) + '/edit'">打开表格</a>
+                </div>
+                <div class="info-message" x-show="sheetConnectionMessage" x-text="sheetConnectionMessage" :style="sheetConnectionOk ? 'margin-top:10px;color:#166534;' : 'margin-top:10px;color:#b91c1c;'"></div>
+              </div>
+
               <div class="form-actions">
                 <button class="btn btn-primary" @click="saveCampaignConfig()">保存设置</button>
               </div>
@@ -498,6 +518,15 @@
             <div class="form-group">
               <label>活动结束时间</label>
               <input type="datetime-local" x-model="newCampaign.end_date_local">
+            </div>
+            <div class="form-group">
+              <label>本活动 Google Sheet（可稍后填写）</label>
+              <input type="text" x-model="newCampaign.google_sheet" placeholder="粘贴 Google Sheet 链接或 Spreadsheet ID">
+              <span class="field-hint">留空时暂时使用现有全局表格。</span>
+            </div>
+            <div class="form-group">
+              <label>工作表名称</label>
+              <input type="text" x-model="newCampaign.worksheet_name" placeholder="Sheet1" maxlength="100">
             </div>
             <div class="error-message" x-show="createCampaignError" x-text="createCampaignError" style="margin-bottom:12px;"></div>
             <div class="form-actions">

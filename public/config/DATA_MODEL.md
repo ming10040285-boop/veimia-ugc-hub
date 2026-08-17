@@ -40,6 +40,25 @@ Each campaign is stored as a separate JSON file. Created and managed by the Admi
 | `updated_at` | string | Yes | ISO 8601 UTC (e.g. `2025-01-15T09:00:00Z`) |
 | `products` | CampaignProduct[] | Yes | 1 item (single mode), 1–50 items (multiple mode) |
 | `ugc_gallery` | UGCPost[] | Yes | 0–20 items |
+| `registration_storage` | RegistrationStorage \| null | No | Campaign-specific Google Sheet; absent = legacy global Sheet |
+
+### RegistrationStorage Fields
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| `provider` | string | Yes | `"google_sheets"` |
+| `spreadsheet_id` | string | Yes | Google Spreadsheet ID only; credentials remain in environment variables |
+| `worksheet_name` | string | Yes | Worksheet tab name, defaults to `"Sheet1"` |
+| `schema_version` | integer | Yes | Current value: `2` |
+| `mode` | string | Yes | `"dedicated"` |
+
+Each Campaign may bind a different Spreadsheet. Existing Campaigns without this object continue using `GOOGLE_SHEETS_ID` and the first worksheet, so historical registration flows remain compatible.
+
+Standard v2 worksheet columns:
+
+`timestamp`, `campaign_id`, `product_id`, `product_name`, `selected_size`, `selected_color`, `instagram_id`, `instagram_profile_url`, `member_type`, `name`, `phone`, `postal_code`, `state`, `city`, `address`, `consent_status`.
+
+CRM, screening, DM, logistics and UGC tracking fields are intentionally not stored in the shipping handoff Sheet.
 
 ### CampaignProduct Fields
 

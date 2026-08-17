@@ -51,6 +51,8 @@ try:
     from google.oauth2.service_account import Credentials
     GSPREAD_AVAILABLE = True
 except ImportError:
+    gspread = None
+    Credentials = None
     GSPREAD_AVAILABLE = False
 
 try:
@@ -213,200 +215,249 @@ def check_product_closed(config, product_id):
     return product.get("status") == "closed"
 
 
+REGISTRATION_HEADERS_V2 = [
+    "timestamp",
+    "campaign_id",
+    "product_id",
+    "product_name",
+    "selected_size",
+    "selected_color",
+    "instagram_id",
+    "instagram_profile_url",
+    "member_type",
+    "name",
+    "phone",
+    "postal_code",
+    "state",
+    "city",
+    "address",
+    "consent_status",
+]
+
+
+def extract_spreadsheet_id(value):
+    """Accept either a Google Sheet URL or a raw spreadsheet ID."""
+    value = str(value or "").strip()
+    marker = "/spreadsheets/d/"
+    if marker in value:
+        value = value.split(marker, 1)[1].split("/", 1)[0]
+    return value.split("?", 1)[0].split("#", 1)[0].strip()
+
+
+def resolve_sheet_settings(campaign_id):
+    """Resolve Campaign-specific Sheet settings, with legacy env fallback."""
+    config = load_campaign_config(campaign_id) or {}
+    storage = config.get("registration_storage") or {}
+    configured_sheet_id = extract_spreadsheet_id(
+        storage.get("spreadsheet_id") or storage.get("spreadsheet_url")
+    )
+
+    if configured_sheet_id:
+        return {
+            "sheet_id": configured_sheet_id,
+            "worksheet_name": str(storage.get("worksheet_name") or "Sheet1").strip(),
+            "schema_version": 2,
+            "dedicated": True,
+            "campaign": config,
+        }
+
+    return {
+        "sheet_id": extract_spreadsheet_id(os.environ.get("GOOGLE_SHEETS_ID")),
+        "worksheet_name": "",
+        "schema_version": 1,
+        "dedicated": False,
+        "campaign": config,
+    }
+
+
+def open_registration_worksheet(campaign_id):
+    """Open the worksheet configured for a Campaign."""
+    if not GSPREAD_AVAILABLE and (gspread is None or Credentials is None):
+        raise SheetsUnavailableError("gspread library not available")
+
+    credentials_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS")
+    settings = resolve_sheet_settings(campaign_id)
+    if not credentials_json or not settings["sheet_id"]:
+        raise SheetsUnavailableError("Google Sheets credentials not configured")
+
+    credentials_info = json.loads(credentials_json)
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
+    spreadsheet = gspread.authorize(credentials).open_by_key(settings["sheet_id"])
+    worksheet = (
+        spreadsheet.worksheet(settings["worksheet_name"])
+        if settings["dedicated"] and settings["worksheet_name"]
+        else spreadsheet.sheet1
+    )
+    return worksheet, settings
+
+
+def _instagram_profile_url(instagram_id):
+    username = str(instagram_id or "").strip()
+    if username.startswith(("http://", "https://")):
+        return username
+    username = username.lstrip("@").strip("/")
+    return f"https://www.instagram.com/{username}/" if username else ""
+
+
+def _header_index(headers):
+    return {str(name).strip().lower(): index for index, name in enumerate(headers)}
+
+
 def check_duplicate(campaign_id, product_id, instagram_id):
-    """
-    Check if a registration already exists for the given combination
-    by querying Google Sheets for rows matching (campaign_id, product_id, instagram_id).
-
-    Uses gspread to connect to the Google Sheets data store. If the sheet is
-    unavailable or credentials are not configured, the check is skipped (returns False)
-    to avoid blocking registrations due to transient errors.
-
-    Args:
-        campaign_id: The campaign identifier
-        product_id: The product identifier
-        instagram_id: The creator's Instagram ID
-
-    Returns:
-        True if a duplicate registration exists, False otherwise.
-    """
-    if not GSPREAD_AVAILABLE:
+    """Check for an existing Campaign/product/Instagram registration."""
+    if not GSPREAD_AVAILABLE and (gspread is None or Credentials is None):
         return False
 
     try:
-        credentials_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS")
-        sheet_id = os.environ.get("GOOGLE_SHEETS_ID")
-
-        if not credentials_json or not sheet_id:
+        worksheet, settings = open_registration_worksheet(campaign_id)
+        all_rows = worksheet.get_all_values()
+        if not all_rows:
             return False
 
-        credentials_info = json.loads(credentials_json)
-        scopes = [
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive",
-        ]
-        credentials = Credentials.from_service_account_info(
-            credentials_info, scopes=scopes
-        )
-        client = gspread.authorize(credentials)
-        spreadsheet = client.open_by_key(sheet_id)
-        worksheet = spreadsheet.sheet1
+        headers = _header_index(all_rows[0])
+        for row in all_rows[1:]:
+            if settings["dedicated"] and "instagram_id" in headers:
+                def value(name, default=""):
+                    index = headers.get(name)
+                    return row[index] if index is not None and index < len(row) else default
 
-        # Get all rows and check for duplicate
-        # Row data columns (0-indexed): 0=timestamp, 1=campaign_id, 2=product_id,
-        # 3=selected_size, 4=selected_color, 5=instagram_id, ...
-        all_rows = worksheet.get_all_values()
+                row_campaign_id = value("campaign_id", campaign_id)
+                row_product_id = value("product_id")
+                row_instagram_id = value("instagram_id")
+            elif len(row) >= 6:
+                row_campaign_id, row_product_id, row_instagram_id = row[1], row[2], row[5]
+            else:
+                continue
 
-        for row in all_rows[1:]:  # Skip header row
-            if len(row) >= 6:
-                row_campaign_id = row[1]
-                row_product_id = row[2]
-                row_instagram_id = row[5]
-
-                if (
-                    row_campaign_id == campaign_id
-                    and row_product_id == product_id
-                    and row_instagram_id == instagram_id
-                ):
-                    return True
-
+            if (
+                row_campaign_id == campaign_id
+                and row_product_id == product_id
+                and row_instagram_id.strip().lower() == str(instagram_id).strip().lower()
+            ):
+                return True
         return False
-
     except Exception:
-        # If Google Sheets is unavailable, skip duplicate check
-        # This will be properly handled with retry logic in task 2.4
+        # Persistence handles connection failures; duplicate checks stay non-blocking.
         return False
 
 
 def save_to_retry_queue(row_data):
-    """
-    Append failed row data to a JSON lines file for manual retry.
-
-    Saves to retry_queue.jsonl in the project root directory.
-    """
+    """Append failed row data to the local best-effort retry file."""
     project_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
     queue_path = os.path.normpath(os.path.join(project_root, "retry_queue.jsonl"))
-
     entry = {
         "row_data": row_data,
         "failed_at": datetime.now(timezone.utc).isoformat(),
     }
-
     with open(queue_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
 def append_with_retry(worksheet, row_data):
-    """
-    Append a row to a Google Sheets worksheet with retry logic.
-
-    Attempts up to MAX_RETRIES times, with RETRY_TIMEOUT seconds per attempt.
-    On failure after all retries, saves to retry queue and raises SheetsUnavailableError.
-
-    Args:
-        worksheet: A gspread Worksheet object
-        row_data: List of values to append as a row
-
-    Returns:
-        True on success
-
-    Raises:
-        SheetsUnavailableError: After all retry attempts fail
-    """
+    """Append one row, retrying transient Google Sheets failures."""
     last_error = None
-
     for attempt in range(MAX_RETRIES):
         try:
-            start_time = time.time()
             worksheet.append_row(row_data, value_input_option="RAW")
-            elapsed = time.time() - start_time
-
-            if elapsed > RETRY_TIMEOUT:
-                # Even though it completed, if it took too long we note it but still accept
-                pass
-
             return True
-        except Exception as e:
-            last_error = e
-            elapsed = time.time() - start_time
-
+        except Exception as error:
+            last_error = error
             if attempt < MAX_RETRIES - 1:
-                # Brief backoff before next retry
                 time.sleep(1)
 
-    # All retries exhausted
     save_to_retry_queue(row_data)
     raise SheetsUnavailableError(
         f"Google Sheets unavailable after {MAX_RETRIES} attempts: {str(last_error)}"
     )
 
 
+def _dedicated_registration_values(body, campaign):
+    product = find_product(campaign, body.get("product_id")) or {}
+    return {
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "campaign_id": body.get("campaign_id", ""),
+        "product_id": body.get("product_id", ""),
+        "product_name": product.get("product_name", ""),
+        "selected_size": body.get("selected_size", ""),
+        "selected_color": body.get("selected_color", ""),
+        "instagram_id": body.get("instagram_id", ""),
+        "instagram_profile_url": _instagram_profile_url(body.get("instagram_id")),
+        "member_type": body.get("member_type", ""),
+        "name": body.get("name", ""),
+        "phone": body.get("phone", ""),
+        "postal_code": body.get("postal_code", ""),
+        "state": body.get("state", ""),
+        "city": body.get("city", ""),
+        "address": body.get("address", ""),
+        "consent_status": "true",
+    }
+
+
 def persist_registration(body):
-    """
-    Persist a validated registration to Google Sheets.
+    """Persist a registration to its Campaign Sheet or the legacy shared Sheet."""
+    campaign_id = body.get("campaign_id", "")
+    try:
+        worksheet, settings = open_registration_worksheet(campaign_id)
+    except SheetsUnavailableError:
+        raise
+    except Exception as error:
+        raise SheetsUnavailableError(f"Unable to open Campaign worksheet: {str(error)}") from error
 
-    Serializes the registration as a row with 12 columns and appends it
-    to the configured Google Sheets document.
+    if settings["dedicated"]:
+        all_rows = worksheet.get_all_values()
+        if not all_rows:
+            append_with_retry(worksheet, REGISTRATION_HEADERS_V2)
+            headers = REGISTRATION_HEADERS_V2
+        else:
+            headers = [str(header).strip().lower() for header in all_rows[0]]
+            required = {"instagram_id", "product_id", "selected_size", "selected_color", "name"}
+            if not required.issubset(set(headers)):
+                raise SheetsUnavailableError(
+                    "Campaign worksheet headers are incompatible; use an empty worksheet or initialize the standard headers"
+                )
 
-    Args:
-        body: The validated registration request body dict
-
-    Returns:
-        list: The row_data that was persisted (for use by sync_to_excel)
-
-    Raises:
-        SheetsUnavailableError: If persistence fails after all retries
-    """
-    if not GSPREAD_AVAILABLE:
-        raise SheetsUnavailableError("gspread library not available")
-
-    credentials_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS")
-    sheet_id = os.environ.get("GOOGLE_SHEETS_ID")
-
-    if not credentials_json or not sheet_id:
-        raise SheetsUnavailableError("Google Sheets credentials not configured")
-
-    # Initialize gspread client
-    credentials_info = json.loads(credentials_json)
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive",
-    ]
-    credentials = Credentials.from_service_account_info(
-        credentials_info, scopes=scopes
-    )
-    client = gspread.authorize(credentials)
-    spreadsheet = client.open_by_key(sheet_id)
-    worksheet = spreadsheet.sheet1
-
-    # Serialize registration as row with 12 columns
-    # Order: timestamp, campaign_id, product_id, selected_size, selected_color,
-    #         instagram_id, name, postal_code, phone, state, city, address, consent_status, member_type
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    row_data = [
-        timestamp,
-        body.get("campaign_id", ""),
-        body.get("product_id", ""),
-        body.get("selected_size", ""),
-        body.get("selected_color", ""),
-        body.get("instagram_id", ""),
-        body.get("name", ""),
-        body.get("postal_code", ""),
-        body.get("phone", ""),
-        body.get("state", ""),
-        body.get("city", ""),
-        body.get("address", ""),
-        "true",                                # consent_status
-        body.get("member_type", ""),
-        # --- Management columns (empty, for manual use in Sheets) ---
-        "",                                    # 合作状态
-        "",                                    # Creator等级
-        "",                                    # 历史合作次数
-        "",                                    # 内容质量评分
-        "",                                    # 发帖链接
-        "",                                    # 备注
-    ]
+        values = _dedicated_registration_values(body, settings["campaign"])
+        row_data = [values.get(header, "") for header in headers]
+    else:
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        if "state" not in body and "city" not in body:
+            # Preserve the original 11-column contract for historical clients.
+            row_data = [
+                timestamp,
+                campaign_id,
+                body.get("product_id", ""),
+                body.get("selected_size", ""),
+                body.get("selected_color", ""),
+                body.get("instagram_id", ""),
+                body.get("name", ""),
+                body.get("phone", ""),
+                body.get("address", ""),
+                body.get("postal_code", ""),
+                "true",
+            ]
+        else:
+            # Preserve the current 20-column shared-Sheet format for the live form.
+            row_data = [
+                timestamp,
+                campaign_id,
+                body.get("product_id", ""),
+                body.get("selected_size", ""),
+                body.get("selected_color", ""),
+                body.get("instagram_id", ""),
+                body.get("name", ""),
+                body.get("postal_code", ""),
+                body.get("phone", ""),
+                body.get("state", ""),
+                body.get("city", ""),
+                body.get("address", ""),
+                "true",
+                body.get("member_type", ""),
+                "", "", "", "", "", "",
+            ]
 
     append_with_retry(worksheet, row_data)
     return row_data
