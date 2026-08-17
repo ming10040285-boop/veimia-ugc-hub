@@ -36,6 +36,16 @@ def _read_body(handler):
     return json.loads(handler.rfile.read(length)) if length else {}
 
 
+def _parse_credentials_info(credentials_json):
+    """Parse the first service-account JSON object without exposing its contents."""
+    parsed, _ = json.JSONDecoder().raw_decode(str(credentials_json or "").strip())
+    if isinstance(parsed, str):
+        parsed = json.loads(parsed)
+    if not isinstance(parsed, dict):
+        raise ValueError("Google Sheets credentials must be a JSON object")
+    return parsed
+
+
 def _extract_id(value):
     value = str(value or "").strip()
     marker = "/spreadsheets/d/"
@@ -58,7 +68,7 @@ def _handle_post(handler):
             _respond(handler, 400, {"status": "error", "message": "请填写 Google Sheet 链接，并确认服务账号凭据已配置。"})
             return
 
-        credentials_info = json.loads(credentials_json)
+        credentials_info = _parse_credentials_info(credentials_json)
         scopes = [
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",

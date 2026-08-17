@@ -52,6 +52,16 @@ def _load_campaign(campaign_id):
         return json.load(campaign_file)
 
 
+def _parse_credentials_info(credentials_json):
+    """Parse the first service-account JSON object without exposing its contents."""
+    parsed, _ = json.JSONDecoder().raw_decode(str(credentials_json or "").strip())
+    if isinstance(parsed, str):
+        parsed = json.loads(parsed)
+    if not isinstance(parsed, dict):
+        raise ValueError("Google Sheets credentials must be a JSON object")
+    return parsed
+
+
 def _extract_spreadsheet_id(value):
     value = str(value or "").strip()
     marker = "/spreadsheets/d/"
@@ -97,7 +107,7 @@ def _read_registrations_from_sheets(campaign_id=None):
         return [], "尚未配置 Google Sheets 凭据或表格。"
 
     try:
-        credentials_info = json.loads(credentials_json)
+        credentials_info = _parse_credentials_info(credentials_json)
         scopes = [
             "https://www.googleapis.com/auth/spreadsheets.readonly",
             "https://www.googleapis.com/auth/drive.readonly",

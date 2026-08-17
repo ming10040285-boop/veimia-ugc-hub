@@ -235,6 +235,16 @@ REGISTRATION_HEADERS_V2 = [
 ]
 
 
+def parse_credentials_info(credentials_json):
+    """Parse the first service-account JSON object without exposing its contents."""
+    parsed, _ = json.JSONDecoder().raw_decode(str(credentials_json or "").strip())
+    if isinstance(parsed, str):
+        parsed = json.loads(parsed)
+    if not isinstance(parsed, dict):
+        raise ValueError("Google Sheets credentials must be a JSON object")
+    return parsed
+
+
 def extract_spreadsheet_id(value):
     """Accept either a Google Sheet URL or a raw spreadsheet ID."""
     value = str(value or "").strip()
@@ -280,7 +290,7 @@ def open_registration_worksheet(campaign_id):
     if not credentials_json or not settings["sheet_id"]:
         raise SheetsUnavailableError("Google Sheets credentials not configured")
 
-    credentials_info = json.loads(credentials_json)
+    credentials_info = parse_credentials_info(credentials_json)
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive",
