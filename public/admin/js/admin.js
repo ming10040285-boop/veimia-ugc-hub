@@ -1843,9 +1843,28 @@ function adminApp() {
     // Creator CRM
     // =============================================
 
+    restoreRememberedAdminLogin() {
+      if (this.adminApiToken) return;
+      try {
+        const token = localStorage.getItem('veimia_admin_api_token_remembered') || '';
+        const expiresAt = Number(localStorage.getItem('veimia_admin_api_token_expires') || 0);
+        if (!token || expiresAt <= Date.now()) {
+          localStorage.removeItem('veimia_admin_api_token_remembered');
+          localStorage.removeItem('veimia_admin_api_token_expires');
+          return;
+        }
+        this.adminApiToken = token;
+        this.adminApiTokenDraft = token;
+        sessionStorage.setItem('veimia_admin_api_token', token);
+      } catch {
+        // Persistent storage may be unavailable in private browsing mode.
+      }
+    },
+
     openCreatorsTab() {
       this.activeTab = 'creators';
       this.selectedCreator = null;
+      this.restoreRememberedAdminLogin();
       if (this.adminApiToken) this.loadCreators();
     },
 
@@ -1857,6 +1876,18 @@ function adminApp() {
       }
       this.adminApiToken = token;
       sessionStorage.setItem('veimia_admin_api_token', token);
+      try {
+        if (this.$refs.rememberAdminLogin && this.$refs.rememberAdminLogin.checked) {
+          const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+          localStorage.setItem('veimia_admin_api_token_remembered', token);
+          localStorage.setItem('veimia_admin_api_token_expires', String(Date.now() + thirtyDays));
+        } else {
+          localStorage.removeItem('veimia_admin_api_token_remembered');
+          localStorage.removeItem('veimia_admin_api_token_expires');
+        }
+      } catch {
+        // The current session still works when persistent storage is unavailable.
+      }
       this.creatorsError = '';
       this.loadCreators();
     },
@@ -1869,6 +1900,12 @@ function adminApp() {
       this.selectedCreator = null;
       this.creatorsError = '';
       sessionStorage.removeItem('veimia_admin_api_token');
+      try {
+        localStorage.removeItem('veimia_admin_api_token_remembered');
+        localStorage.removeItem('veimia_admin_api_token_expires');
+      } catch {
+        // Ignore storage cleanup failures.
+      }
     },
 
     async crmRequest(url, options = {}) {

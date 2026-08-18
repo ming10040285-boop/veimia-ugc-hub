@@ -566,8 +566,12 @@
             <p class="placeholder-text">数据库接口默认关闭。配置完成后，请输入管理员访问码。</p>
             <div class="form-group">
               <label>管理员访问码</label>
-              <input type="password" x-model="adminApiTokenDraft" autocomplete="current-password" @keydown.enter="saveAdminApiToken()">
+              <input type="password" name="admin-access-token" x-model="adminApiTokenDraft" autocomplete="current-password" @keydown.enter="saveAdminApiToken()">
             </div>
+            <label style="display:flex; align-items:center; gap:8px; margin:0 0 14px; cursor:pointer;">
+              <input type="checkbox" x-ref="rememberAdminLogin">
+              <span>在此电脑记住登录（30 天）</span>
+            </label>
             <button class="btn btn-primary" @click="saveAdminApiToken()">进入达人管理</button>
           </div>
 
@@ -577,7 +581,7 @@
                 <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
                   <div class="form-group" style="flex:1; min-width:220px; margin:0;">
                     <label>搜索 Instagram</label>
-                    <input type="search" x-model="creatorSearch" placeholder="用户名或 Instagram User ID" @keydown.enter="loadCreators()">
+                    <input type="search" name="creator-search-query" x-model="creatorSearch" placeholder="用户名或 Instagram User ID" autocomplete="off" data-1p-ignore="true" data-lpignore="true" data-bwignore="true" @keydown.enter="loadCreators()">
                   </div>
                   <button class="btn btn-primary" @click="loadCreators()">搜索</button>
                   <button class="btn" @click="clearAdminApiToken()">退出达人管理</button>
