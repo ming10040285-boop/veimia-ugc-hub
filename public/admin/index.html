@@ -230,6 +230,30 @@
                 <div class="info-message" x-show="sheetConnectionMessage" x-text="sheetConnectionMessage" :style="sheetConnectionOk ? 'margin-top:10px;color:#166534;' : 'margin-top:10px;color:#b91c1c;'"></div>
               </div>
 
+              <div style="border-top:1px solid #e2e8f0; margin:20px 0 16px; padding-top:16px;">
+                <h4 style="margin:0 0 6px;">候选达人筛选规则</h4>
+                <p class="field-hint" style="margin-bottom:12px;">规则只在后台点击“按规则评估”时执行，不会自动运行，也不会自动创建 Creator。</p>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;">
+                  <div class="form-group" style="margin:0;">
+                    <label>最低粉丝数</label>
+                    <input type="number" min="0" step="1" x-model.number="editingCampaign.candidate_screening.min_follower_count" placeholder="留空则不限制">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label>最高粉丝数</label>
+                    <input type="number" min="0" step="1" x-model.number="editingCampaign.candidate_screening.max_follower_count" placeholder="留空则不限制">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label>最近发帖天数</label>
+                    <input type="number" min="0" step="1" x-model.number="editingCampaign.candidate_screening.max_days_since_last_post" placeholder="例：30；留空不限制">
+                  </div>
+                </div>
+                <label style="display:flex; align-items:center; gap:8px; margin-top:14px; cursor:pointer;">
+                  <input type="checkbox" x-model="editingCampaign.candidate_screening.allow_private_accounts">
+                  <span>允许私密账号通过筛选</span>
+                </label>
+                <p class="field-hint" style="margin-top:8px;">候选人的粉丝数、账号公开状态或最近发帖时间缺失时，会进入“待人工确认”。</p>
+              </div>
+
               <div class="form-actions">
                 <button class="btn btn-primary" @click="saveCampaignConfig()">保存设置</button>
               </div>
@@ -644,7 +668,7 @@
               <div class="card" x-show="!candidatesLoading && candidates.length > 0" style="overflow-x:auto;">
                 <div style="margin-bottom:10px; color:#64748b;" x-text="'共 ' + candidatesTotal + ' 位候选人'"></div>
                 <table class="registrations-table" style="width:100%; border-collapse:collapse;">
-                  <thead><tr style="text-align:left; border-bottom:2px solid #e2e8f0;"><th style="padding:8px;">Instagram</th><th style="padding:8px;">Campaign</th><th style="padding:8px;">粉丝</th><th style="padding:8px;">账号</th><th style="padding:8px;">状态</th><th style="padding:8px;">原因</th><th style="padding:8px;">操作</th></tr></thead>
+                  <thead><tr style="text-align:left; border-bottom:2px solid #e2e8f0;"><th style="padding:8px;">Instagram</th><th style="padding:8px;">Campaign</th><th style="padding:8px;">粉丝</th><th style="padding:8px;">账号</th><th style="padding:8px;">最近发帖</th><th style="padding:8px;">状态</th><th style="padding:8px;">原因</th><th style="padding:8px;">操作</th></tr></thead>
                   <tbody>
                     <template x-for="candidate in candidates" :key="candidate.candidate_id">
                       <tr style="border-bottom:1px solid #f1f5f9;">
@@ -652,10 +676,13 @@
                         <td style="padding:8px;" x-text="candidate.campaign_id"></td>
                         <td style="padding:8px;" x-text="formatFollowerCount(candidate.follower_count)"></td>
                         <td style="padding:8px;" x-text="candidate.is_private === null ? '未知' : (candidate.is_private ? '私密' : '公开')"></td>
+                        <td style="padding:8px; white-space:nowrap;" x-text="candidate.last_post_at ? formatDate(candidate.last_post_at) : '未知'"></td>
                         <td style="padding:8px;" x-text="candidateStatusLabel(candidate.screening_status)"></td>
                         <td style="padding:8px;" x-text="candidate.screening_reason || '—'"></td>
-                        <td style="padding:8px; min-width:260px;">
+                        <td style="padding:8px; min-width:380px;">
                           <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button class="btn btn-sm" x-show="candidate.screening_status !== 'promoted'" @click="editCandidateProfile(candidate)">录入资料</button>
+                            <button class="btn btn-sm btn-primary" x-show="candidate.screening_status !== 'promoted'" @click="evaluateCandidate(candidate)">按规则评估</button>
                             <button class="btn btn-sm" x-show="candidate.screening_status !== 'promoted'" @click="updateCandidateStatus(candidate, 'eligible')">符合</button>
                             <button class="btn btn-sm" x-show="candidate.screening_status !== 'promoted'" @click="updateCandidateStatus(candidate, 'manual_review')">人工确认</button>
                             <button class="btn btn-sm" x-show="candidate.screening_status !== 'promoted'" @click="updateCandidateStatus(candidate, 'filtered')">过滤</button>

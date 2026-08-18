@@ -2,11 +2,13 @@
 
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlparse
 
 from api._admin_auth import AdminAuthError, require_admin
 from api._db import DatabaseUnavailableError, connect_database
 from api.admin.registration_import import _username_from_value
+from api.admin.registrations import _load_campaign
 
 logger = logging.getLogger(__name__)
 MAX_LIMIT = 200
@@ -132,6 +134,111 @@ def _create_candidate(handler, body):
     _respond(handler, 200, {"status": "success", "data": candidate})
 
 
+def _optional_rule_integer(value, label):
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{label} 必须是非负整数或留空")
+    if int(value) != value or value < 0:
+        raise ValueError(f"{label} 必须是非负整数或留空")
+    return int(value)
+
+
+def _screening_rules(campaign):
+    rules = campaign.get("candidate_screening")
+    if not isinstance(rules, dict) or rules.get("execution_mode") != "manual":
+        raise ValueError("当前 Campaign 尚未保存候选筛选规则")
+    parsed = {
+        "min_follower_count": _optional_rule_integer(
+            rules.get("min_follower_count"), "最低粉丝数"
+        ),
+        "max_follower_count": _optional_rule_integer(
+            rules.get("max_follower_count"), "最高粉丝数"
+        ),
+        "max_days_since_last_post": _optional_rule_integer(
+            rules.get("max_days_since_last_post"), "最近发帖天数"
+        ),
+        "allow_private_accounts": rules.get("allow_private_accounts"),
+    }
+    if not isinstance(parsed["allow_private_accounts"], bool):
+        raise ValueError("是否允许私密账号配置无效")
+    minimum = parsed["min_follower_count"]
+    maximum = parsed["max_follower_count"]
+    if minimum is not None and maximum is not None and minimum > maximum:
+        raise ValueError("最低粉丝数不能大于最高粉丝数")
+    return parsed
+
+
+def _evaluate_candidate(handler, body):
+    candidate_id = str(body.get("candidate_id") or "").strip()
+    if not candidate_id:
+        raise ValueError("缺少 candidate_id")
+
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select * from public.creator_candidates where candidate_id = %s for update",
+                (candidate_id,),
+            )
+            candidate = cursor.fetchone()
+            if not candidate:
+                _respond(handler, 404, {"status": "error", "message": "候选人不存在"})
+                return
+            if candidate["screening_status"] == "promoted":
+                raise ValueError("已进入 Creator CRM 的候选人不能重新评估")
+
+            campaign = _load_campaign(candidate["campaign_id"])
+            if not campaign:
+                raise ValueError("候选人对应的 Campaign 不存在")
+            rules = _screening_rules(campaign)
+
+            missing = []
+            if candidate["follower_count"] is None:
+                missing.append("粉丝数")
+            if candidate["is_private"] is None:
+                missing.append("账号公开状态")
+            if candidate["last_post_at"] is None:
+                missing.append("最近发帖时间")
+
+            reasons = []
+            if missing:
+                status = "manual_review"
+                reason = "资料缺失：" + "、".join(missing)
+            else:
+                followers = candidate["follower_count"]
+                minimum = rules["min_follower_count"]
+                maximum = rules["max_follower_count"]
+                if minimum is not None and followers < minimum:
+                    reasons.append(f"粉丝数低于 {minimum}")
+                if maximum is not None and followers > maximum:
+                    reasons.append(f"粉丝数高于 {maximum}")
+                if candidate["is_private"] and not rules["allow_private_accounts"]:
+                    reasons.append("私密账号不符合规则")
+                max_days = rules["max_days_since_last_post"]
+                if max_days is not None:
+                    last_post_at = candidate["last_post_at"]
+                    if last_post_at.tzinfo is None:
+                        last_post_at = last_post_at.replace(tzinfo=timezone.utc)
+                    cutoff = datetime.now(timezone.utc) - timedelta(days=max_days)
+                    if last_post_at < cutoff:
+                        reasons.append(f"最近 {max_days} 天内没有发帖")
+                status = "filtered" if reasons else "eligible"
+                reason = "；".join(reasons) if reasons else "符合当前 Campaign 筛选规则"
+
+            cursor.execute(
+                """
+                update public.creator_candidates
+                set screening_status = %s, screening_reason = %s
+                where candidate_id = %s
+                returning *
+                """,
+                (status, reason, candidate_id),
+            )
+            updated_candidate = cursor.fetchone()
+        connection.commit()
+    _respond(handler, 200, {"status": "success", "data": updated_candidate})
+
+
 def _promote_candidate(handler, body):
     candidate_id = str(body.get("candidate_id") or "").strip()
     if not candidate_id:
@@ -227,6 +334,11 @@ def _handle_post(handler):
     if action == "promote":
         _promote_candidate(handler, body)
         return
+    if action == "evaluate":
+        _evaluate_candidate(handler, body)
+        return
+    if action:
+        raise ValueError("不支持的候选人操作")
     _create_candidate(handler, body)
 
 

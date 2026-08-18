@@ -472,6 +472,7 @@ function adminApp() {
      */
     openCampaignEdit(campaign) {
       const storage = campaign.registration_storage || {};
+      const screening = campaign.candidate_screening || {};
       this.editingCampaign = {
         ...campaign,
         registration_storage: {
@@ -480,6 +481,14 @@ function adminApp() {
           worksheet_name: storage.worksheet_name || 'Sheet1',
           schema_version: 2,
           mode: storage.spreadsheet_id || storage.spreadsheet_url ? 'dedicated' : 'legacy_shared'
+        },
+        candidate_screening: {
+          schema_version: 1,
+          execution_mode: 'manual',
+          min_follower_count: screening.min_follower_count ?? null,
+          max_follower_count: screening.max_follower_count ?? null,
+          allow_private_accounts: screening.allow_private_accounts === true,
+          max_days_since_last_post: screening.max_days_since_last_post ?? null
         }
       };
       this.sheetConnectionMessage = '';
@@ -721,9 +730,36 @@ function adminApp() {
         return;
       }
 
+      const rawScreening = this.editingCampaign.candidate_screening || {};
+      const normalizeOptionalInteger = (value) => {
+        if (value === '' || value === null || value === undefined) return null;
+        const number = Number(value);
+        return Number.isInteger(number) && number >= 0 ? number : NaN;
+      };
+      const minimumFollowers = normalizeOptionalInteger(rawScreening.min_follower_count);
+      const maximumFollowers = normalizeOptionalInteger(rawScreening.max_follower_count);
+      const maximumInactiveDays = normalizeOptionalInteger(rawScreening.max_days_since_last_post);
+      if ([minimumFollowers, maximumFollowers, maximumInactiveDays].some(Number.isNaN)) {
+        this.campaignError = '候选筛选规则只能填写非负整数，或留空关闭该规则。';
+        return;
+      }
+      if (minimumFollowers !== null && maximumFollowers !== null && minimumFollowers > maximumFollowers) {
+        this.campaignError = '最低粉丝数不能大于最高粉丝数。';
+        return;
+      }
+      const candidateScreening = {
+        schema_version: 1,
+        execution_mode: 'manual',
+        min_follower_count: minimumFollowers,
+        max_follower_count: maximumFollowers,
+        allow_private_accounts: rawScreening.allow_private_accounts === true,
+        max_days_since_last_post: maximumInactiveDays
+      };
+
       // Build full campaign data
       const campaignData = {
         ...this.editingCampaign,
+        candidate_screening: candidateScreening,
         ...(registrationStorage ? { registration_storage: registrationStorage } : {}),
         products: this.assignedProducts.map((p, i) => ({
           product_id: p.product_id,
@@ -1974,6 +2010,75 @@ function adminApp() {
         this.candidatesError = error.message || '添加候选达人失败。';
       } finally {
         this.candidatesLoading = false;
+      }
+    },
+
+    async editCandidateProfile(candidate) {
+      const followerInput = prompt(
+        '请输入粉丝数（非负整数）：',
+        candidate.follower_count === null ? '' : String(candidate.follower_count)
+      );
+      if (followerInput === null) return;
+      const followerCount = Number(followerInput);
+      if (!Number.isInteger(followerCount) || followerCount < 0) {
+        this.candidatesError = '粉丝数必须是非负整数。';
+        return;
+      }
+
+      const privacyInput = prompt(
+        '请输入“公开”或“私密”：',
+        candidate.is_private === null ? '' : (candidate.is_private ? '私密' : '公开')
+      );
+      if (privacyInput === null) return;
+      const privacy = privacyInput.trim();
+      if (!['公开', '私密'].includes(privacy)) {
+        this.candidatesError = '账号状态只能填写“公开”或“私密”。';
+        return;
+      }
+
+      const currentDate = candidate.last_post_at ? candidate.last_post_at.slice(0, 10) : '';
+      const lastPostInput = prompt('请输入最近发帖日期（YYYY-MM-DD）：', currentDate);
+      if (lastPostInput === null) return;
+      const lastPost = new Date(lastPostInput.trim() + 'T00:00:00Z');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(lastPostInput.trim()) || Number.isNaN(lastPost.getTime())) {
+        this.candidatesError = '最近发帖日期格式应为 YYYY-MM-DD。';
+        return;
+      }
+
+      this.candidatesError = '';
+      try {
+        const result = await this.crmRequest(
+          '/api/admin/candidates?candidate_id=' + encodeURIComponent(candidate.candidate_id),
+          {
+            method: 'PATCH',
+            body: JSON.stringify({
+              follower_count: followerCount,
+              is_private: privacy === '私密',
+              last_post_at: lastPost.toISOString(),
+              profile_check_status: 'success'
+            })
+          }
+        );
+        const index = this.candidates.findIndex(item => item.candidate_id === candidate.candidate_id);
+        if (index >= 0) this.candidates[index] = result.data;
+      } catch (error) {
+        this.candidatesError = error.message || '保存候选人资料失败。';
+      }
+    },
+
+    async evaluateCandidate(candidate) {
+      if (candidate.screening_status === 'promoted') return;
+      if (!confirm(`确认按 @${candidate.instagram_username} 所属 Campaign 的规则执行筛选？`)) return;
+      this.candidatesError = '';
+      try {
+        const result = await this.crmRequest('/api/admin/candidates?action=evaluate', {
+          method: 'POST',
+          body: JSON.stringify({ candidate_id: candidate.candidate_id })
+        });
+        const index = this.candidates.findIndex(item => item.candidate_id === candidate.candidate_id);
+        if (index >= 0) this.candidates[index] = result.data;
+      } catch (error) {
+        this.candidatesError = error.message || '按规则评估候选人失败。';
       }
     },
 
