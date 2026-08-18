@@ -35,6 +35,11 @@
       :class="{ active: activeTab === 'candidates' }"
       @click="openCandidatesTab()"
     >筛选</button>
+    <button class="mobile-nav-btn" :class="{ active: activeTab === 'dm' }" @click="openWorkflowTab('dm')">私信</button>
+    <button class="mobile-nav-btn" :class="{ active: activeTab === 'shipping' }" @click="openWorkflowTab('shipping')">物流</button>
+    <button class="mobile-nav-btn" :class="{ active: activeTab === 'ugc-monitor' }" @click="openWorkflowTab('ugc-monitor')">监控</button>
+    <button class="mobile-nav-btn" :class="{ active: activeTab === 'jobs' }" @click="openWorkflowTab('jobs')">任务</button>
+    <button class="mobile-nav-btn" :class="{ active: activeTab === 'reports' }" @click="openWorkflowTab('reports')">报表</button>
     <button
       class="mobile-nav-btn"
       :class="{ active: activeTab === 'products' }"
@@ -79,6 +84,21 @@
         >
           <span class="nav-icon">🔎</span>
           <span class="nav-label">候选筛选</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'dm' }" @click="openWorkflowTab('dm')">
+          <span class="nav-icon">💬</span><span class="nav-label">DM 管理</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'shipping' }" @click="openWorkflowTab('shipping')">
+          <span class="nav-icon">🚚</span><span class="nav-label">物流管理</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'ugc-monitor' }" @click="openWorkflowTab('ugc-monitor')">
+          <span class="nav-icon">📡</span><span class="nav-label">UGC 监控</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'jobs' }" @click="openWorkflowTab('jobs')">
+          <span class="nav-icon">⚡</span><span class="nav-label">自动任务</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'reports' }" @click="openWorkflowTab('reports')">
+          <span class="nav-icon">📊</span><span class="nav-label">报表导出</span>
         </button>
         <button
           class="nav-item"
@@ -1174,6 +1194,65 @@
               <button class="btn btn-primary" @click="addUGCPost()" :disabled="ugcUploading">添加</button>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- DM Management Skeleton -->
+      <section x-show="activeTab === 'dm'" class="tab-content">
+        <div class="content-header"><div><h2>DM 管理</h2><p class="placeholder-text" style="margin:4px 0 0;">记录官方品牌账号人工私信后的处理状态</p></div><button class="btn" @click="loadWorkflowParticipants()">刷新</button></div>
+        <div class="content-body">
+          <div class="card" style="margin-bottom:16px;"><div class="form-group" style="margin:0;"><label>Campaign</label><select x-model="workflowCampaignId" @change="loadWorkflowParticipants()"><option value="">请选择 Campaign</option><template x-for="campaign in campaigns" :key="campaign.campaign_id"><option :value="campaign.campaign_id" x-text="campaign.campaign_name"></option></template></select></div></div>
+          <div class="error-message" x-show="workflowError" x-text="workflowError" style="margin-bottom:12px;"></div>
+          <div class="card" x-show="workflowLoading" style="text-align:center;">正在加载...</div>
+          <div class="card" x-show="!workflowLoading && workflowParticipants.length === 0"><p class="placeholder-text">当前 Campaign 暂无参与记录。</p></div>
+          <div class="card" x-show="!workflowLoading && workflowParticipants.length > 0" style="overflow-x:auto;">
+            <table class="registrations-table" style="width:100%;border-collapse:collapse;"><thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;"><th style="padding:8px;">Instagram</th><th style="padding:8px;">商品</th><th style="padding:8px;">DM 状态</th><th style="padding:8px;">最后更新</th></tr></thead><tbody><template x-for="participant in workflowParticipants" :key="participant.participant_id"><tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:8px;" x-text="'@' + participant.instagram_username"></td><td style="padding:8px;" x-text="participant.product_name || participant.product_id || '—'"></td><td style="padding:8px;"><select :value="participant.dm_status" @change="updateWorkflowStatus(participant, 'dm_status', $event.target.value)"><option value="pending">待私信</option><option value="sent">已私信</option><option value="replied">已回复</option><option value="agreed">已同意</option><option value="no_response">无回复</option><option value="rejected">已拒绝</option></select></td><td style="padding:8px;" x-text="formatDate(participant.dm_updated_at || participant.updated_at)"></td></tr></template></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Shipping Management Skeleton -->
+      <section x-show="activeTab === 'shipping'" class="tab-content">
+        <div class="content-header"><div><h2>物流管理</h2><p class="placeholder-text" style="margin:4px 0 0;">订单、物流单号和运输状态工作台</p></div><button class="btn" @click="loadWorkflowParticipants()">刷新</button></div>
+        <div class="content-body">
+          <div class="card" style="margin-bottom:16px;"><div class="form-group" style="margin:0;"><label>Campaign</label><select x-model="workflowCampaignId" @change="loadWorkflowParticipants()"><option value="">请选择 Campaign</option><template x-for="campaign in campaigns" :key="campaign.campaign_id"><option :value="campaign.campaign_id" x-text="campaign.campaign_name"></option></template></select></div></div>
+          <div class="error-message" x-show="workflowError" x-text="workflowError" style="margin-bottom:12px;"></div>
+          <div class="card" x-show="workflowParticipants.length === 0"><p class="placeholder-text">当前 Campaign 暂无物流记录。</p></div>
+          <div class="card" x-show="workflowParticipants.length > 0" style="overflow-x:auto;"><table class="registrations-table" style="width:100%;border-collapse:collapse;"><thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;"><th style="padding:8px;">Instagram</th><th style="padding:8px;">订单号</th><th style="padding:8px;">物流单号</th><th style="padding:8px;">承运商</th><th style="padding:8px;">物流状态</th></tr></thead><tbody><template x-for="participant in workflowParticipants" :key="participant.participant_id"><tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:8px;" x-text="'@' + participant.instagram_username"></td><td style="padding:8px;" x-text="participant.order_number || '—'"></td><td style="padding:8px;" x-text="participant.tracking_number || '—'"></td><td style="padding:8px;" x-text="participant.carrier || '—'"></td><td style="padding:8px;"><select :value="participant.shipping_status" @change="updateWorkflowStatus(participant, 'shipping_status', $event.target.value)"><option value="pending">待处理</option><option value="preparing">待发货</option><option value="shipped">已发货</option><option value="in_transit">运输中</option><option value="delivered">已签收</option></select></td></tr></template></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- UGC Monitoring Skeleton -->
+      <section x-show="activeTab === 'ugc-monitor'" class="tab-content">
+        <div class="content-header"><div><h2>UGC 监控</h2><p class="placeholder-text" style="margin:4px 0 0;">签收后的待发帖、已发帖和完成状态</p></div><button class="btn" @click="loadWorkflowParticipants()">刷新</button></div>
+        <div class="content-body">
+          <div class="card" style="margin-bottom:16px;"><div class="form-group" style="margin:0;"><label>Campaign</label><select x-model="workflowCampaignId" @change="loadWorkflowParticipants()"><option value="">请选择 Campaign</option><template x-for="campaign in campaigns" :key="campaign.campaign_id"><option :value="campaign.campaign_id" x-text="campaign.campaign_name"></option></template></select></div></div>
+          <div class="error-message" x-show="workflowError" x-text="workflowError" style="margin-bottom:12px;"></div>
+          <div class="card" x-show="workflowParticipants.length === 0"><p class="placeholder-text">当前 Campaign 暂无 UGC 跟进记录。</p></div>
+          <div class="card" x-show="workflowParticipants.length > 0" style="overflow-x:auto;"><table class="registrations-table" style="width:100%;border-collapse:collapse;"><thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;"><th style="padding:8px;">Instagram</th><th style="padding:8px;">签收状态</th><th style="padding:8px;">UGC 状态</th><th style="padding:8px;">更新时间</th></tr></thead><tbody><template x-for="participant in workflowParticipants" :key="participant.participant_id"><tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:8px;" x-text="'@' + participant.instagram_username"></td><td style="padding:8px;" x-text="workflowStatusLabel(participant.shipping_status)"></td><td style="padding:8px;"><select :value="participant.ugc_status" @change="updateWorkflowStatus(participant, 'ugc_status', $event.target.value)"><option value="pending">待处理</option><option value="waiting_for_content">待发帖</option><option value="posted">已发帖</option><option value="completed">已完成</option></select></td><td style="padding:8px;" x-text="formatDate(participant.updated_at)"></td></tr></template></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- Automation Jobs Skeleton -->
+      <section x-show="activeTab === 'jobs'" class="tab-content">
+        <div class="content-header"><div><h2>自动任务</h2><p class="placeholder-text" style="margin:4px 0 0;">所有 Instagram 任务都必须由管理员手动点击启动</p></div></div>
+        <div class="content-body">
+          <div class="info-message" x-show="workflowJobMessage" x-text="workflowJobMessage" style="margin-bottom:12px;"></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">
+            <div class="card"><h3>COMMENT_IMPORT</h3><p class="placeholder-text">从指定帖子导入评论用户到候选暂存区。</p><button class="btn btn-primary" @click="runWorkflowJob('COMMENT_IMPORT')">手动启动</button></div>
+            <div class="card"><h3>PROFILE_SCREENING</h3><p class="placeholder-text">检查候选人的粉丝数、私密状态和最近发帖。</p><button class="btn btn-primary" @click="runWorkflowJob('PROFILE_SCREENING')">手动启动</button></div>
+          </div>
+          <div class="card" style="margin-top:16px;"><p class="placeholder-text">当前仅建立任务入口。Instagram 数据提供方、任务日志和重试队列将在后续接入。</p></div>
+        </div>
+      </section>
+
+      <!-- Reports Skeleton -->
+      <section x-show="activeTab === 'reports'" class="tab-content">
+        <div class="content-header"><div><h2>报表导出</h2><p class="placeholder-text" style="margin:4px 0 0;">按 Campaign 汇总并导出工作流数据</p></div><button class="btn btn-primary" @click="exportWorkflowCsv()">导出 CSV</button></div>
+        <div class="content-body">
+          <div class="card" style="margin-bottom:16px;"><div class="form-group" style="margin:0;"><label>Campaign</label><select x-model="workflowCampaignId" @change="loadWorkflowParticipants()"><option value="">请选择 Campaign</option><template x-for="campaign in campaigns" :key="campaign.campaign_id"><option :value="campaign.campaign_id" x-text="campaign.campaign_name"></option></template></select></div></div>
+          <div class="error-message" x-show="workflowError" x-text="workflowError" style="margin-bottom:12px;"></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;"><div class="card"><strong x-text="workflowParticipants.length"></strong><p class="placeholder-text">参与人数</p></div><div class="card"><strong x-text="workflowParticipants.filter(item => item.dm_status === 'agreed').length"></strong><p class="placeholder-text">已同意</p></div><div class="card"><strong x-text="workflowParticipants.filter(item => item.shipping_status === 'delivered').length"></strong><p class="placeholder-text">已签收</p></div><div class="card"><strong x-text="workflowParticipants.filter(item => item.ugc_status === 'completed').length"></strong><p class="placeholder-text">UGC 已完成</p></div></div>
         </div>
       </section>
 

@@ -31,6 +31,11 @@ function adminApp() {
     candidateCampaignFilter: '',
     candidateStatusFilter: '',
     candidateForm: { campaign_id: '', instagram_username: '' },
+    workflowParticipants: [],
+    workflowLoading: false,
+    workflowError: '',
+    workflowCampaignId: '',
+    workflowJobMessage: '',
     adminApiToken: sessionStorage.getItem('veimia_admin_api_token') || '',
     adminApiTokenDraft: sessionStorage.getItem('veimia_admin_api_token') || '',
 
@@ -2188,6 +2193,9 @@ function adminApp() {
       this.candidates = [];
       this.candidatesTotal = 0;
       this.candidatesError = '';
+      this.workflowParticipants = [];
+      this.workflowError = '';
+      this.workflowJobMessage = '';
       this.creatorsError = '';
       sessionStorage.removeItem('veimia_admin_api_token');
       try {
@@ -2266,6 +2274,106 @@ function adminApp() {
       } catch (error) {
         this.creatorsError = error.message || '更新 Creator 标签失败。';
       }
+    },
+
+    openWorkflowTab(tab) {
+      this.activeTab = tab;
+      this.restoreRememberedAdminLogin();
+      this.workflowError = '';
+      this.workflowJobMessage = '';
+      if (!this.workflowCampaignId && this.campaigns.length > 0) {
+        this.workflowCampaignId = this.campaigns[0].campaign_id;
+      }
+      if (!this.adminApiToken) {
+        this.workflowParticipants = [];
+        this.workflowError = '请先在“达人管理”中完成管理员登录。';
+        return;
+      }
+      if (tab !== 'jobs') this.loadWorkflowParticipants();
+    },
+
+    async loadWorkflowParticipants() {
+      this.restoreRememberedAdminLogin();
+      this.workflowError = '';
+      if (!this.adminApiToken) {
+        this.workflowParticipants = [];
+        this.workflowError = '请先在“达人管理”中完成管理员登录。';
+        return;
+      }
+      if (!this.workflowCampaignId) {
+        this.workflowParticipants = [];
+        return;
+      }
+      this.workflowLoading = true;
+      try {
+        const query = new URLSearchParams({
+          campaign_id: this.workflowCampaignId,
+          limit: '200'
+        });
+        const result = await this.crmRequest('/api/admin/participants?' + query.toString());
+        this.workflowParticipants = result.data || [];
+      } catch (error) {
+        this.workflowParticipants = [];
+        this.workflowError = error.message || '加载 Campaign 工作流失败。';
+      } finally {
+        this.workflowLoading = false;
+      }
+    },
+
+    async updateWorkflowStatus(participant, field, value) {
+      this.workflowError = '';
+      try {
+        const result = await this.crmRequest(
+          '/api/admin/participants?participant_id=' + encodeURIComponent(participant.participant_id),
+          { method: 'PATCH', body: JSON.stringify({ [field]: value }) }
+        );
+        const index = this.workflowParticipants.findIndex(
+          item => item.participant_id === participant.participant_id
+        );
+        if (index >= 0) {
+          this.workflowParticipants[index] = {
+            ...this.workflowParticipants[index],
+            ...result.data
+          };
+        }
+      } catch (error) {
+        this.workflowError = error.message || '更新工作流状态失败。';
+        await this.loadWorkflowParticipants();
+      }
+    },
+
+    runWorkflowJob(jobType) {
+      const labels = {
+        COMMENT_IMPORT: 'Instagram 评论导入',
+        PROFILE_SCREENING: 'Instagram 主页检查'
+      };
+      this.workflowJobMessage = `${labels[jobType] || jobType}入口已建立；待后续配置 Instagram 数据源后启用。`;
+    },
+
+    exportWorkflowCsv() {
+      if (this.workflowParticipants.length === 0) {
+        this.workflowError = '当前 Campaign 暂无可导出的参与记录。';
+        return;
+      }
+      const columns = [
+        ['campaign_id', 'Campaign'], ['instagram_username', 'Instagram'],
+        ['product_name', '商品'], ['dm_status', 'DM状态'],
+        ['shipping_status', '物流状态'], ['order_number', '订单号'],
+        ['tracking_number', '物流单号'], ['carrier', '承运商'],
+        ['ugc_status', 'UGC状态']
+      ];
+      const escapeCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+      const rows = [columns.map(column => escapeCell(column[1])).join(',')];
+      for (const participant of this.workflowParticipants) {
+        rows.push(columns.map(column => escapeCell(participant[column[0]])).join(','));
+      }
+      const blob = new Blob(['\ufeff' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${this.workflowCampaignId}-workflow.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
     },
 
     creatorTagLabel(tag) {
