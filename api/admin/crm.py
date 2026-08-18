@@ -1,14 +1,18 @@
-"""Route Creator and Participant APIs through one Vercel function."""
+"""Route Creator, Candidate, and Participant APIs through one Vercel function."""
 
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
-from api.admin import creators, participants, registration_import
+from api.admin import candidates, creators, participants, registration_import
 
 
 def _resource_module(handler):
     path = urlparse(handler.path).path.rstrip("/")
-    return participants if path.endswith("/participants") else creators
+    if path.endswith("/participants"):
+        return participants
+    if path.endswith("/candidates"):
+        return candidates
+    return creators
 
 
 class handler(BaseHTTPRequestHandler):

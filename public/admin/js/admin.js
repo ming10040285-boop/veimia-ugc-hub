@@ -23,6 +23,14 @@ function adminApp() {
     creatorsError: '',
     creatorSearch: '',
     selectedCreator: null,
+    candidates: [],
+    candidatesTotal: 0,
+    candidatesLoading: false,
+    candidatesError: '',
+    candidateSearch: '',
+    candidateCampaignFilter: '',
+    candidateStatusFilter: '',
+    candidateForm: { campaign_id: '', instagram_username: '' },
     adminApiToken: sessionStorage.getItem('veimia_admin_api_token') || '',
     adminApiTokenDraft: sessionStorage.getItem('veimia_admin_api_token') || '',
 
@@ -1905,6 +1913,115 @@ function adminApp() {
     },
 
     // =============================================
+    // Candidate Screening
+    // =============================================
+
+    openCandidatesTab() {
+      this.activeTab = 'candidates';
+      this.restoreRememberedAdminLogin();
+      if (!this.candidateForm.campaign_id && this.campaigns.length > 0) {
+        this.candidateForm.campaign_id = this.campaigns[0].campaign_id;
+      }
+      if (this.adminApiToken) this.loadCandidates();
+    },
+
+    async loadCandidates() {
+      this.restoreRememberedAdminLogin();
+      if (!this.adminApiToken) return;
+      this.candidatesLoading = true;
+      this.candidatesError = '';
+      try {
+        const query = new URLSearchParams({ limit: '200' });
+        if (this.candidateSearch.trim()) query.set('q', this.candidateSearch.trim());
+        if (this.candidateCampaignFilter) query.set('campaign_id', this.candidateCampaignFilter);
+        if (this.candidateStatusFilter) query.set('screening_status', this.candidateStatusFilter);
+        const result = await this.crmRequest('/api/admin/candidates?' + query.toString());
+        this.candidates = result.data || [];
+        this.candidatesTotal = result.page ? result.page.total : this.candidates.length;
+      } catch (error) {
+        this.candidates = [];
+        this.candidatesTotal = 0;
+        this.candidatesError = error.message || '加载候选达人失败。';
+        if (error.status === 401 || error.status === 403) {
+          this.clearAdminApiToken();
+          this.candidatesError = '管理员访问码无效，请到“达人管理”重新登录。';
+        }
+      } finally {
+        this.candidatesLoading = false;
+      }
+    },
+
+    async createCandidate() {
+      this.candidatesError = '';
+      this.restoreRememberedAdminLogin();
+      if (!this.adminApiToken) {
+        this.candidatesError = '请先在“达人管理”中输入管理员访问码。';
+        return;
+      }
+      if (!this.candidateForm.campaign_id || !this.candidateForm.instagram_username.trim()) {
+        this.candidatesError = '请选择 Campaign 并填写 Instagram 用户名或主页链接。';
+        return;
+      }
+      this.candidatesLoading = true;
+      try {
+        await this.crmRequest('/api/admin/candidates', {
+          method: 'POST',
+          body: JSON.stringify(this.candidateForm)
+        });
+        this.candidateForm.instagram_username = '';
+        await this.loadCandidates();
+      } catch (error) {
+        this.candidatesError = error.message || '添加候选达人失败。';
+      } finally {
+        this.candidatesLoading = false;
+      }
+    },
+
+    async updateCandidateStatus(candidate, status) {
+      let reason = '';
+      if (status === 'manual_review' || status === 'filtered') {
+        reason = prompt(status === 'filtered' ? '请输入过滤原因：' : '请输入需要人工确认的原因：') || '';
+        if (!reason.trim()) return;
+      }
+      this.candidatesError = '';
+      try {
+        const result = await this.crmRequest(
+          '/api/admin/candidates?candidate_id=' + encodeURIComponent(candidate.candidate_id),
+          {
+            method: 'PATCH',
+            body: JSON.stringify({ screening_status: status, screening_reason: reason || null })
+          }
+        );
+        const index = this.candidates.findIndex(item => item.candidate_id === candidate.candidate_id);
+        if (index >= 0) this.candidates[index] = result.data;
+      } catch (error) {
+        this.candidatesError = error.message || '更新候选人状态失败。';
+      }
+    },
+
+    async promoteCandidate(candidate) {
+      if (candidate.screening_status !== 'eligible') return;
+      if (!confirm(`确认将 @${candidate.instagram_username} 加入 Creator CRM？`)) return;
+      this.candidatesError = '';
+      try {
+        await this.crmRequest('/api/admin/candidates?action=promote', {
+          method: 'POST',
+          body: JSON.stringify({ candidate_id: candidate.candidate_id })
+        });
+        await this.loadCandidates();
+      } catch (error) {
+        this.candidatesError = error.message || '加入 Creator CRM 失败。';
+      }
+    },
+
+    candidateStatusLabel(status) {
+      return ({
+        pending: '待筛选', eligible: '符合条件', manual_review: '待人工确认',
+        filtered: '已过滤', promoted: '已进入 CRM'
+      })[status] || status || '—';
+    },
+
+    // =============================================
     // Creator CRM
     // =============================================
 
@@ -1963,6 +2080,9 @@ function adminApp() {
       this.creators = [];
       this.creatorsTotal = 0;
       this.selectedCreator = null;
+      this.candidates = [];
+      this.candidatesTotal = 0;
+      this.candidatesError = '';
       this.creatorsError = '';
       sessionStorage.removeItem('veimia_admin_api_token');
       try {

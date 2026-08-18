@@ -32,6 +32,11 @@
     >达人</button>
     <button
       class="mobile-nav-btn"
+      :class="{ active: activeTab === 'candidates' }"
+      @click="openCandidatesTab()"
+    >筛选</button>
+    <button
+      class="mobile-nav-btn"
       :class="{ active: activeTab === 'products' }"
       @click="activeTab = 'products'"
     >商品</button>
@@ -66,6 +71,14 @@
         >
           <span class="nav-icon">👥</span>
           <span class="nav-label">达人管理</span>
+        </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'candidates' }"
+          @click="openCandidatesTab()"
+        >
+          <span class="nav-icon">🔎</span>
+          <span class="nav-label">候选筛选</span>
         </button>
         <button
           class="nav-item"
@@ -553,6 +566,110 @@
           </div>
         </div>
 
+      </section>
+
+      <!-- Candidate Screening Tab -->
+      <section x-show="activeTab === 'candidates'" class="tab-content">
+        <div class="content-header">
+          <div>
+            <h2>候选筛选</h2>
+            <p class="placeholder-text" style="margin:4px 0 0;">候选人暂存区；只有确认符合条件后才能进入 Creator CRM</p>
+          </div>
+          <button class="btn" @click="loadCandidates()" :disabled="candidatesLoading || !adminApiToken">刷新</button>
+        </div>
+        <div class="content-body">
+          <div class="card" x-show="!adminApiToken">
+            <p class="placeholder-text">请先在“达人管理”中完成管理员登录。</p>
+            <button class="btn btn-primary" @click="openCreatorsTab()">前往达人管理登录</button>
+          </div>
+
+          <template x-if="adminApiToken">
+            <div>
+              <div class="card" style="margin-bottom:16px;">
+                <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+                  <div class="form-group" style="flex:1; min-width:180px; margin:0;">
+                    <label>搜索 Instagram</label>
+                    <input type="search" x-model="candidateSearch" placeholder="用户名" autocomplete="off" @keydown.enter="loadCandidates()">
+                  </div>
+                  <div class="form-group" style="min-width:180px; margin:0;">
+                    <label>Campaign</label>
+                    <select x-model="candidateCampaignFilter" @change="loadCandidates()">
+                      <option value="">全部 Campaign</option>
+                      <template x-for="campaign in campaigns" :key="campaign.campaign_id">
+                        <option :value="campaign.campaign_id" x-text="campaign.campaign_name"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div class="form-group" style="min-width:150px; margin:0;">
+                    <label>筛选状态</label>
+                    <select x-model="candidateStatusFilter" @change="loadCandidates()">
+                      <option value="">全部状态</option>
+                      <option value="pending">待筛选</option>
+                      <option value="eligible">符合条件</option>
+                      <option value="manual_review">待人工确认</option>
+                      <option value="filtered">已过滤</option>
+                      <option value="promoted">已进入 CRM</option>
+                    </select>
+                  </div>
+                  <button class="btn btn-primary" @click="loadCandidates()">搜索</button>
+                </div>
+              </div>
+
+              <div class="card" style="margin-bottom:16px;">
+                <h3>手动添加候选人</h3>
+                <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+                  <div class="form-group" style="min-width:220px; margin:0;">
+                    <label>Campaign</label>
+                    <select x-model="candidateForm.campaign_id">
+                      <option value="">请选择 Campaign</option>
+                      <template x-for="campaign in campaigns" :key="campaign.campaign_id">
+                        <option :value="campaign.campaign_id" x-text="campaign.campaign_name"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div class="form-group" style="flex:1; min-width:240px; margin:0;">
+                    <label>Instagram 用户名或主页链接</label>
+                    <input type="text" x-model="candidateForm.instagram_username" placeholder="@username 或 Instagram 主页链接" autocomplete="off" @keydown.enter="createCandidate()">
+                  </div>
+                  <button class="btn btn-primary" @click="createCandidate()" :disabled="candidatesLoading">添加候选人</button>
+                </div>
+              </div>
+
+              <div class="error-message" x-show="candidatesError" x-text="candidatesError" style="margin-bottom:12px;"></div>
+              <div class="card" x-show="candidatesLoading" style="text-align:center;">正在加载候选达人...</div>
+              <div class="card" x-show="!candidatesLoading && !candidatesError && candidates.length === 0">
+                <p class="placeholder-text">暂无候选人。可以先手动添加，后续再接入 Instagram 评论导入。</p>
+              </div>
+
+              <div class="card" x-show="!candidatesLoading && candidates.length > 0" style="overflow-x:auto;">
+                <div style="margin-bottom:10px; color:#64748b;" x-text="'共 ' + candidatesTotal + ' 位候选人'"></div>
+                <table class="registrations-table" style="width:100%; border-collapse:collapse;">
+                  <thead><tr style="text-align:left; border-bottom:2px solid #e2e8f0;"><th style="padding:8px;">Instagram</th><th style="padding:8px;">Campaign</th><th style="padding:8px;">粉丝</th><th style="padding:8px;">账号</th><th style="padding:8px;">状态</th><th style="padding:8px;">原因</th><th style="padding:8px;">操作</th></tr></thead>
+                  <tbody>
+                    <template x-for="candidate in candidates" :key="candidate.candidate_id">
+                      <tr style="border-bottom:1px solid #f1f5f9;">
+                        <td style="padding:8px;"><a :href="candidate.instagram_profile_url" target="_blank" rel="noopener" x-text="'@' + candidate.instagram_username"></a></td>
+                        <td style="padding:8px;" x-text="candidate.campaign_id"></td>
+                        <td style="padding:8px;" x-text="formatFollowerCount(candidate.follower_count)"></td>
+                        <td style="padding:8px;" x-text="candidate.is_private === null ? '未知' : (candidate.is_private ? '私密' : '公开')"></td>
+                        <td style="padding:8px;" x-text="candidateStatusLabel(candidate.screening_status)"></td>
+                        <td style="padding:8px;" x-text="candidate.screening_reason || '—'"></td>
+                        <td style="padding:8px; min-width:260px;">
+                          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button class="btn btn-sm" x-show="candidate.screening_status !== 'promoted'" @click="updateCandidateStatus(candidate, 'eligible')">符合</button>
+                            <button class="btn btn-sm" x-show="candidate.screening_status !== 'promoted'" @click="updateCandidateStatus(candidate, 'manual_review')">人工确认</button>
+                            <button class="btn btn-sm" x-show="candidate.screening_status !== 'promoted'" @click="updateCandidateStatus(candidate, 'filtered')">过滤</button>
+                            <button class="btn btn-sm btn-primary" x-show="candidate.screening_status === 'eligible'" @click="promoteCandidate(candidate)">进入 Creator CRM</button>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </template>
+        </div>
       </section>
 
       <!-- Creator CRM Tab -->
