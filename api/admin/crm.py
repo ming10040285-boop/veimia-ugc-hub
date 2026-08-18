@@ -1,9 +1,9 @@
 """Route Creator and Participant APIs through one Vercel function."""
 
 from http.server import BaseHTTPRequestHandler
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
-from api.admin import creators, participants
+from api.admin import creators, participants, registration_import
 
 
 def _resource_module(handler):
@@ -27,7 +27,12 @@ class handler(BaseHTTPRequestHandler):
         self._handle("_handle_get")
 
     def do_POST(self):
-        self._handle("_handle_post")
+        module = _resource_module(self)
+        action = parse_qs(urlparse(self.path).query).get("action", [""])[0]
+        if module is participants and action == "import_registrations":
+            module._dispatch(self, registration_import.handle_import)
+            return
+        module._dispatch(self, module._handle_post)
 
     def do_PATCH(self):
         self._handle("_handle_patch")

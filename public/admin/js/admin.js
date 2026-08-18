@@ -46,6 +46,9 @@ function adminApp() {
     registrationsWarning: '',
     registrationsLoading: false,
     showRegistrations: false,
+    registrationImportLoading: false,
+    registrationImportResult: '',
+    registrationImportError: '',
 
     // Campaign Google Sheet connection state
     sheetConnectionLoading: false,
@@ -226,6 +229,62 @@ function adminApp() {
         this.registrationsWarning = '网络错误。';
       } finally {
         this.registrationsLoading = false;
+      }
+    },
+
+    async importConfirmedRegistrations() {
+      this.registrationImportError = '';
+      this.registrationImportResult = '';
+      this.restoreRememberedAdminLogin();
+      if (!this.adminApiToken) {
+        this.registrationImportError = '请先在“达人管理”中输入管理员访问码。';
+        return;
+      }
+      if (!this.editingCampaign || this.registrationsCount === 0) {
+        this.registrationImportError = '当前 Campaign 没有可导入的报名记录。';
+        return;
+      }
+      const confirmed = confirm(
+        `即将把当前 ${this.registrationsCount} 条报名视为“已人工确认通过筛选”并导入 Creator CRM。是否继续？`
+      );
+      if (!confirmed) return;
+
+      this.registrationImportLoading = true;
+      try {
+        const result = await this.crmRequest(
+          '/api/admin/participants?action=import_registrations',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              campaign_id: this.editingCampaign.campaign_id,
+              confirmed_eligible: true
+            })
+          }
+        );
+        const data = result.data || {};
+        this.registrationImportResult = [
+          `导入完成：新建达人 ${data.creators_created || 0} 位`,
+          `更新达人 ${data.creators_updated || 0} 位`,
+          `新建参与记录 ${data.participants_created || 0} 条`,
+          `更新参与记录 ${data.participants_updated || 0} 条`,
+          `无效 ${data.invalid_count || 0} 条`,
+          `合并重复 ${data.duplicates_collapsed || 0} 条`
+        ].join('；');
+        if ((data.invalid_rows || []).length > 0) {
+          const details = data.invalid_rows.slice(0, 5)
+            .map(item => `第 ${item.row} 行：${item.message}`)
+            .join('；');
+          this.registrationImportResult += `。${details}`;
+        }
+      } catch (error) {
+        if (error.status === 401 || error.status === 403) {
+          this.clearAdminApiToken();
+          this.registrationImportError = '管理员访问码无效，请到“达人管理”重新登录。';
+        } else {
+          this.registrationImportError = error.message || '导入 Creator CRM 失败。';
+        }
+      } finally {
+        this.registrationImportLoading = false;
       }
     },
 
@@ -417,6 +476,9 @@ function adminApp() {
       };
       this.sheetConnectionMessage = '';
       this.sheetConnectionOk = false;
+      this.registrationImportLoading = false;
+      this.registrationImportResult = '';
+      this.registrationImportError = '';
       this._previousProductMode = campaign.product_mode;
       
       // Convert ISO dates to datetime-local format for input fields
@@ -457,6 +519,9 @@ function adminApp() {
       this.registrations = [];
       this.registrationsCount = 0;
       this.registrationsWarning = '';
+      this.registrationImportLoading = false;
+      this.registrationImportResult = '';
+      this.registrationImportError = '';
       this.showRegistrations = false;
     },
 

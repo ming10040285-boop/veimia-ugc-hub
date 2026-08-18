@@ -430,8 +430,10 @@
                   加载中...
                 </div>
 
-                <!-- Warning message -->
+                <!-- Warning and import messages -->
                 <div class="info-message" x-show="registrationsWarning" x-text="registrationsWarning" style="margin-bottom:12px;"></div>
+                <div class="success-message" x-show="registrationImportResult" x-text="registrationImportResult" style="margin-bottom:12px;"></div>
+                <div class="error-message" x-show="registrationImportError" x-text="registrationImportError" style="margin-bottom:12px;"></div>
 
                 <!-- Empty state -->
                 <div x-show="!registrationsLoading && registrations.length === 0 && !registrationsWarning" style="padding:12px; text-align:center; color:#999;">
@@ -468,10 +470,12 @@
                   </table>
                 </div>
 
-                <!-- Refresh button -->
-                <div style="margin-top:12px; text-align:right;">
-                  <button class="btn btn-sm" @click="loadRegistrations(editingCampaign.campaign_id)" :disabled="registrationsLoading">刷新</button>
+                <!-- Registration actions -->
+                <div style="margin-top:12px; display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;">
+                  <button class="btn btn-sm" @click="loadRegistrations(editingCampaign.campaign_id)" :disabled="registrationsLoading || registrationImportLoading">刷新</button>
+                  <button class="btn btn-sm btn-primary" @click="importConfirmedRegistrations()" :disabled="registrationsLoading || registrationImportLoading || registrationsCount === 0" x-text="registrationImportLoading ? '正在导入...' : '导入已确认达人到 CRM'"></button>
                 </div>
+                <p class="field-hint" style="margin-top:8px; text-align:right;">仅在这些报名已经人工确认通过筛选后使用；重复导入不会重置现有流程状态。</p>
               </div>
             </div>
           </div>
