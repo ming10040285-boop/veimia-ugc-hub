@@ -11,6 +11,8 @@
     { "src": "api/admin/ugc.py", "use": "@vercel/python" },
     { "src": "api/admin/registrations.py", "use": "@vercel/python" },
     { "src": "api/admin/campaign_sheet.py", "use": "@vercel/python" },
+    { "src": "api/admin/creators.py", "use": "@vercel/python" },
+    { "src": "api/admin/participants.py", "use": "@vercel/python" },
     { "src": "api/admin/save.py", "use": "@vercel/python" },
     { "src": "public/**", "use": "@vercel/static" }
   ],
@@ -27,6 +29,8 @@
     { "src": "/api/admin/ugc", "dest": "/api/admin/ugc.py" },
     { "src": "/api/admin/registrations", "dest": "/api/admin/registrations.py" },
     { "src": "/api/admin/campaign-sheet", "dest": "/api/admin/campaign_sheet.py" },
+    { "src": "/api/admin/creators", "dest": "/api/admin/creators.py" },
+    { "src": "/api/admin/participants", "dest": "/api/admin/participants.py" },
     { "src": "/api/register", "dest": "/api/register.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]

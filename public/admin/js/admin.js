@@ -16,6 +16,16 @@ function adminApp() {
     products: [],
     ugcPosts: [],
 
+    // Creator CRM (protected APIs)
+    creators: [],
+    creatorsTotal: 0,
+    creatorsLoading: false,
+    creatorsError: '',
+    creatorSearch: '',
+    selectedCreator: null,
+    adminApiToken: sessionStorage.getItem('veimia_admin_api_token') || '',
+    adminApiTokenDraft: sessionStorage.getItem('veimia_admin_api_token') || '',
+
     // UI state flags
     showCreateCampaign: false,
     showCreateProduct: false,
@@ -1827,6 +1837,129 @@ function adminApp() {
       URL.revokeObjectURL(url);
       
       this.ugcSuccess = 'JSON 文件已下载。请将内容粘贴到 demo.json 的 ugc_gallery 字段后重新部署。';
+    },
+
+    // =============================================
+    // Creator CRM
+    // =============================================
+
+    openCreatorsTab() {
+      this.activeTab = 'creators';
+      this.selectedCreator = null;
+      if (this.adminApiToken) this.loadCreators();
+    },
+
+    saveAdminApiToken() {
+      const token = String(this.adminApiTokenDraft || '').trim();
+      if (!token) {
+        this.creatorsError = '请输入管理员访问码。';
+        return;
+      }
+      this.adminApiToken = token;
+      sessionStorage.setItem('veimia_admin_api_token', token);
+      this.creatorsError = '';
+      this.loadCreators();
+    },
+
+    clearAdminApiToken() {
+      this.adminApiToken = '';
+      this.adminApiTokenDraft = '';
+      this.creators = [];
+      this.creatorsTotal = 0;
+      this.selectedCreator = null;
+      this.creatorsError = '';
+      sessionStorage.removeItem('veimia_admin_api_token');
+    },
+
+    async crmRequest(url, options = {}) {
+      const headers = {
+        'Authorization': 'Bearer ' + this.adminApiToken,
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.headers || {})
+      };
+      const response = await fetch(url, { ...options, headers });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(data.message || '达人数据库请求失败。');
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    },
+
+    async loadCreators() {
+      if (!this.adminApiToken) return;
+      this.creatorsLoading = true;
+      this.creatorsError = '';
+      try {
+        const query = new URLSearchParams({ limit: '100' });
+        if (this.creatorSearch.trim()) query.set('q', this.creatorSearch.trim());
+        const result = await this.crmRequest('/api/admin/creators?' + query.toString());
+        this.creators = result.data || [];
+        this.creatorsTotal = result.page ? result.page.total : this.creators.length;
+      } catch (error) {
+        this.creators = [];
+        this.creatorsTotal = 0;
+        this.creatorsError = error.status === 503
+          ? '达人数据库尚未连接到线上后台。'
+          : (error.message || '加载达人数据失败。');
+        if (error.status === 401 || error.status === 403) {
+          this.clearAdminApiToken();
+          this.creatorsError = '管理员访问码不正确，请重新输入。';
+        }
+      } finally {
+        this.creatorsLoading = false;
+      }
+    },
+
+    async openCreatorDetails(creatorId) {
+      this.creatorsError = '';
+      try {
+        const result = await this.crmRequest('/api/admin/creators?creator_id=' + encodeURIComponent(creatorId));
+        result.data.creator.tags = result.data.creator.tags || [];
+        result.data.participations = result.data.participations || [];
+        this.selectedCreator = result.data;
+      } catch (error) {
+        this.creatorsError = error.message || '加载 Creator 详情失败。';
+      }
+    },
+
+    async toggleCreatorTag(tag) {
+      if (!this.selectedCreator) return;
+      const current = new Set(this.selectedCreator.creator.tags || []);
+      current.has(tag) ? current.delete(tag) : current.add(tag);
+      try {
+        const result = await this.crmRequest(
+          '/api/admin/creators?creator_id=' + encodeURIComponent(this.selectedCreator.creator.creator_id),
+          { method: 'PATCH', body: JSON.stringify({ tags: Array.from(current) }) }
+        );
+        this.selectedCreator.creator = result.data;
+        const index = this.creators.findIndex(item => item.creator_id === result.data.creator_id);
+        if (index >= 0) this.creators[index] = result.data;
+      } catch (error) {
+        this.creatorsError = error.message || '更新 Creator 标签失败。';
+      }
+    },
+
+    creatorTagLabel(tag) {
+      return ({ favorite: 'Favorite', priority: 'Priority', do_not_invite: 'Do Not Invite' })[tag] || tag;
+    },
+
+    workflowStatusLabel(status) {
+      return ({
+        pending: '待处理', eligible: '符合条件', manual_review: '待人工确认', filtered: '已过滤',
+        sent: '已私信', replied: '已回复', agreed: '已同意', no_response: '无回复', rejected: '已拒绝',
+        submitted: '已填写', preparing: '待发货', shipped: '已发货', in_transit: '运输中', delivered: '已签收',
+        waiting_for_content: '待发帖', posted: '已发帖', completed: '已完成'
+      })[status] || status || '—';
+    },
+
+    formatFollowerCount(value) {
+      const count = Number(value);
+      if (!Number.isFinite(count)) return '—';
+      if (count >= 10000) return (count / 10000).toFixed(1).replace(/\.0$/, '') + '万';
+      if (count >= 1000) return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+      return String(count);
     },
 
     // =============================================

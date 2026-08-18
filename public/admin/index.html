@@ -27,6 +27,11 @@
     >活动</button>
     <button
       class="mobile-nav-btn"
+      :class="{ active: activeTab === 'creators' }"
+      @click="openCreatorsTab()"
+    >达人</button>
+    <button
+      class="mobile-nav-btn"
       :class="{ active: activeTab === 'products' }"
       @click="activeTab = 'products'"
     >商品</button>
@@ -53,6 +58,14 @@
         >
           <span class="nav-icon">📋</span>
           <span class="nav-label">活动管理</span>
+        </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'creators' }"
+          @click="openCreatorsTab()"
+        >
+          <span class="nav-icon">👥</span>
+          <span class="nav-label">达人管理</span>
         </button>
         <button
           class="nav-item"
@@ -536,6 +549,101 @@
           </div>
         </div>
 
+      </section>
+
+      <!-- Creator CRM Tab -->
+      <section x-show="activeTab === 'creators'" class="tab-content">
+        <div class="content-header">
+          <div>
+            <h2>达人管理</h2>
+            <p class="placeholder-text" style="margin:4px 0 0;">长期 Creator 档案与 Campaign 参与历史</p>
+          </div>
+          <button class="btn" @click="loadCreators()" :disabled="creatorsLoading || !adminApiToken">刷新</button>
+        </div>
+        <div class="content-body">
+          <div class="card" x-show="!adminApiToken">
+            <h3>管理员访问验证</h3>
+            <p class="placeholder-text">数据库接口默认关闭。配置完成后，请输入管理员访问码。</p>
+            <div class="form-group">
+              <label>管理员访问码</label>
+              <input type="password" x-model="adminApiTokenDraft" autocomplete="current-password" @keydown.enter="saveAdminApiToken()">
+            </div>
+            <button class="btn btn-primary" @click="saveAdminApiToken()">进入达人管理</button>
+          </div>
+
+          <template x-if="adminApiToken">
+            <div>
+              <div class="card" style="margin-bottom:16px;">
+                <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+                  <div class="form-group" style="flex:1; min-width:220px; margin:0;">
+                    <label>搜索 Instagram</label>
+                    <input type="search" x-model="creatorSearch" placeholder="用户名或 Instagram User ID" @keydown.enter="loadCreators()">
+                  </div>
+                  <button class="btn btn-primary" @click="loadCreators()">搜索</button>
+                  <button class="btn" @click="clearAdminApiToken()">退出达人管理</button>
+                </div>
+              </div>
+
+              <div class="error-message" x-show="creatorsError" x-text="creatorsError" style="margin-bottom:12px;"></div>
+              <div class="card" x-show="creatorsLoading" style="text-align:center;">正在加载达人数据...</div>
+              <div class="card" x-show="!creatorsLoading && !creatorsError && creators.length === 0">
+                <p class="placeholder-text">暂无 Creator。后续可从筛选结果或 Campaign Google Sheet 导入。</p>
+              </div>
+
+              <div class="card" x-show="!creatorsLoading && creators.length > 0" style="overflow-x:auto;">
+                <div style="margin-bottom:10px; color:#64748b;" x-text="'共 ' + creatorsTotal + ' 位 Creator'"></div>
+                <table class="registrations-table" style="width:100%; border-collapse:collapse;">
+                  <thead>
+                    <tr style="text-align:left; border-bottom:2px solid #e2e8f0;">
+                      <th style="padding:9px;">Instagram</th>
+                      <th style="padding:9px;">粉丝</th>
+                      <th style="padding:9px;">参加次数</th>
+                      <th style="padding:9px;">标签</th>
+                      <th style="padding:9px;">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="creator in creators" :key="creator.creator_id">
+                      <tr style="border-bottom:1px solid #f1f5f9;">
+                        <td style="padding:9px;">
+                          <strong x-text="'@' + creator.instagram_username.replace(/^@/, '')"></strong>
+                        </td>
+                        <td style="padding:9px;" x-text="formatFollowerCount(creator.follower_count)"></td>
+                        <td style="padding:9px;" x-text="creator.total_participation_count"></td>
+                        <td style="padding:9px;" x-text="(creator.tags || []).map(tag => creatorTagLabel(tag)).join('、') || '—'"></td>
+                        <td style="padding:9px;"><button class="btn btn-sm" @click="openCreatorDetails(creator.creator_id)">查看详情</button></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="card" x-show="selectedCreator" style="margin-top:16px;">
+                <template x-if="selectedCreator">
+                  <div>
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
+                      <h3 x-text="'@' + selectedCreator.creator.instagram_username.replace(/^@/, '')"></h3>
+                      <button class="btn btn-sm" @click="selectedCreator = null">关闭</button>
+                    </div>
+                    <div class="form-actions" style="justify-content:flex-start; flex-wrap:wrap; margin-bottom:14px;">
+                      <button class="btn btn-sm" @click="toggleCreatorTag('favorite')" :class="{ 'btn-primary': selectedCreator.creator.tags.includes('favorite') }">Favorite</button>
+                      <button class="btn btn-sm" @click="toggleCreatorTag('priority')" :class="{ 'btn-primary': selectedCreator.creator.tags.includes('priority') }">Priority</button>
+                      <button class="btn btn-sm" @click="toggleCreatorTag('do_not_invite')" :class="{ 'btn-primary': selectedCreator.creator.tags.includes('do_not_invite') }">Do Not Invite</button>
+                    </div>
+                    <h4>Campaign 历史</h4>
+                    <p class="placeholder-text" x-show="selectedCreator.participations.length === 0">暂无参与记录。</p>
+                    <div style="overflow-x:auto;" x-show="selectedCreator.participations.length > 0">
+                      <table class="registrations-table" style="width:100%; border-collapse:collapse;">
+                        <thead><tr style="text-align:left; border-bottom:2px solid #e2e8f0;"><th style="padding:8px;">Campaign</th><th style="padding:8px;">次数</th><th style="padding:8px;">私信</th><th style="padding:8px;">物流</th><th style="padding:8px;">UGC</th></tr></thead>
+                        <tbody><template x-for="item in selectedCreator.participations" :key="item.participant_id"><tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:8px;" x-text="item.campaign_id"></td><td style="padding:8px;" x-text="'第 ' + item.participation_number + ' 次'"></td><td style="padding:8px;" x-text="workflowStatusLabel(item.dm_status)"></td><td style="padding:8px;" x-text="workflowStatusLabel(item.shipping_status)"></td><td style="padding:8px;" x-text="workflowStatusLabel(item.ugc_status)"></td></tr></template></tbody>
+                      </table>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
       </section>
 
       <!-- Products Tab -->
