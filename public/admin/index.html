@@ -207,7 +207,13 @@
                 <label>主图</label>
                 <div class="image-upload-area">
                   <div class="image-preview" x-show="editingCampaign.hero_image_url">
-                    <img :src="editingCampaign.hero_image_url" alt="主图预览" style="max-width:100%;max-height:120px;border-radius:8px;" onerror="this.style.display='none'">
+                    <img
+                      :src="editingCampaign.hero_image_url"
+                      alt="主图预览"
+                      style="max-width:100%;max-height:120px;border-radius:8px;"
+                      @load="$event.target.style.display = 'block'"
+                      @error="$event.target.style.display = 'none'"
+                    >
                   </div>
                   <label class="btn upload-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
                     📎 上传图片
@@ -572,7 +578,13 @@
               <label>主图</label>
               <div class="image-upload-area">
                 <div class="image-preview" x-show="newCampaign.hero_image_url">
-                  <img :src="newCampaign.hero_image_url" alt="预览" style="max-width:100%;max-height:120px;border-radius:8px;" onerror="this.style.display='none'">
+                  <img
+                    :src="newCampaign.hero_image_url"
+                    alt="预览"
+                    style="max-width:100%;max-height:120px;border-radius:8px;"
+                    @load="$event.target.style.display = 'block'"
+                    @error="$event.target.style.display = 'none'"
+                  >
                 </div>
                 <label class="btn upload-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
                   📎 上传图片
