@@ -31,6 +31,7 @@
     { "src": "/api/admin/candidates", "dest": "/api/admin/crm.py" },
     { "src": "/api/admin/creators", "dest": "/api/admin/crm.py" },
     { "src": "/api/admin/participants", "dest": "/api/admin/crm.py" },
+    { "src": "/api/admin/jobs", "dest": "/api/admin/crm.py" },
     { "src": "/api/register", "dest": "/api/register.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]

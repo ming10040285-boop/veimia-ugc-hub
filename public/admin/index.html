@@ -38,7 +38,7 @@
     <button class="mobile-nav-btn" :class="{ active: activeTab === 'dm' }" @click="openWorkflowTab('dm')">私信</button>
     <button class="mobile-nav-btn" :class="{ active: activeTab === 'shipping' }" @click="openWorkflowTab('shipping')">物流</button>
     <button class="mobile-nav-btn" :class="{ active: activeTab === 'ugc-monitor' }" @click="openWorkflowTab('ugc-monitor')">监控</button>
-    <button class="mobile-nav-btn" :class="{ active: activeTab === 'jobs' }" @click="openWorkflowTab('jobs')">任务</button>
+    <button class="mobile-nav-btn" :class="{ active: activeTab === 'jobs' }" @click="openWorkflowTab('jobs')">任务中心</button>
     <button class="mobile-nav-btn" :class="{ active: activeTab === 'reports' }" @click="openWorkflowTab('reports')">报表</button>
     <button
       class="mobile-nav-btn"
@@ -95,7 +95,7 @@
           <span class="nav-icon">📡</span><span class="nav-label">UGC 监控</span>
         </button>
         <button class="nav-item" :class="{ active: activeTab === 'jobs' }" @click="openWorkflowTab('jobs')">
-          <span class="nav-icon">⚡</span><span class="nav-label">自动任务</span>
+          <span class="nav-icon">⚡</span><span class="nav-label">任务中心</span>
         </button>
         <button class="nav-item" :class="{ active: activeTab === 'reports' }" @click="openWorkflowTab('reports')">
           <span class="nav-icon">📊</span><span class="nav-label">报表导出</span>
@@ -1233,16 +1233,82 @@
         </div>
       </section>
 
-      <!-- Automation Jobs Skeleton -->
+      <!-- Automation Job Center -->
       <section x-show="activeTab === 'jobs'" class="tab-content">
-        <div class="content-header"><div><h2>自动任务</h2><p class="placeholder-text" style="margin:4px 0 0;">所有 Instagram 任务都必须由管理员手动点击启动</p></div></div>
+        <div class="content-header">
+          <div><h2>任务中心</h2><p class="placeholder-text" style="margin:4px 0 0;">所有 Instagram 任务都必须由管理员手动点击启动</p></div>
+          <button class="btn" @click="loadAutomationJobs()" :disabled="automationJobsLoading">刷新</button>
+        </div>
         <div class="content-body">
-          <div class="info-message" x-show="workflowJobMessage" x-text="workflowJobMessage" style="margin-bottom:12px;"></div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">
-            <div class="card"><h3>COMMENT_IMPORT</h3><p class="placeholder-text">从指定帖子导入评论用户到候选暂存区。</p><button class="btn btn-primary" @click="runWorkflowJob('COMMENT_IMPORT')">手动启动</button></div>
-            <div class="card"><h3>PROFILE_SCREENING</h3><p class="placeholder-text">检查候选人的粉丝数、私密状态和最近发帖。</p><button class="btn btn-primary" @click="runWorkflowJob('PROFILE_SCREENING')">手动启动</button></div>
+          <div class="card" style="margin-bottom:16px;">
+            <div class="form-group" style="margin:0;">
+              <label>Campaign</label>
+              <select x-model="workflowCampaignId" @change="loadAutomationJobs()">
+                <option value="">请选择 Campaign</option>
+                <template x-for="campaign in campaigns" :key="campaign.campaign_id">
+                  <option :value="campaign.campaign_id" x-text="campaign.campaign_name || campaign.campaign_id"></option>
+                </template>
+              </select>
+            </div>
           </div>
-          <div class="card" style="margin-top:16px;"><p class="placeholder-text">当前仅建立任务入口。Instagram 数据提供方、任务日志和重试队列将在后续接入。</p></div>
+
+          <div class="info-message" x-show="workflowJobMessage" x-text="workflowJobMessage" style="margin-bottom:12px;"></div>
+          <div class="error-message" x-show="automationJobsError" x-text="automationJobsError" style="margin-bottom:12px;"></div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">
+            <div class="card">
+              <h3>COMMENT_IMPORT</h3>
+              <p class="placeholder-text">从指定帖子的评论用户建立候选导入任务。</p>
+              <button class="btn btn-primary" @click="startAutomationJob('COMMENT_IMPORT')" :disabled="automationJobSubmitting || !workflowCampaignId">手动启动</button>
+            </div>
+            <div class="card">
+              <h3>PROFILE_SCREENING</h3>
+              <p class="placeholder-text">建立候选人粉丝数、私密状态和最近发帖检查任务。</p>
+              <button class="btn btn-primary" @click="startAutomationJob('PROFILE_SCREENING')" :disabled="automationJobSubmitting || !workflowCampaignId">手动启动</button>
+            </div>
+            <div class="card">
+              <h3>UGC_MONITORING</h3>
+              <p class="placeholder-text">建立 Campaign 参与者 UGC 发布状态监控任务。</p>
+              <button class="btn btn-primary" @click="startAutomationJob('UGC_MONITORING')" :disabled="automationJobSubmitting || !workflowCampaignId">手动启动</button>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px;">
+            <p class="placeholder-text" style="margin:0;">当前任务会持久化进入等待队列。Instagram 数据提供方和短批次执行器接入前，系统不会伪装任务已经执行完成。</p>
+          </div>
+
+          <div class="card" x-show="automationJobsLoading" style="margin-top:16px;text-align:center;">正在加载任务...</div>
+          <div class="card" x-show="!automationJobsLoading && automationJobs.length === 0" style="margin-top:16px;">
+            <p class="placeholder-text">当前 Campaign 暂无任务记录。</p>
+          </div>
+          <div class="card" x-show="!automationJobsLoading && automationJobs.length > 0" style="margin-top:16px;overflow-x:auto;">
+            <h3 style="margin-top:0;">任务历史</h3>
+            <table class="registrations-table" style="width:100%;border-collapse:collapse;min-width:980px;">
+              <thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">
+                <th style="padding:8px;">类型</th><th style="padding:8px;">Campaign</th><th style="padding:8px;">状态</th>
+                <th style="padding:8px;">进度</th><th style="padding:8px;">运行时间</th><th style="padding:8px;">统计结果</th>
+                <th style="padding:8px;">失败数</th><th style="padding:8px;">操作</th>
+              </tr></thead>
+              <tbody>
+                <template x-for="job in automationJobs" :key="job.job_id">
+                  <tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:8px;" x-text="automationJobTypeLabel(job.job_type)"></td>
+                    <td style="padding:8px;" x-text="automationJobCampaignLabel(job.campaign_id)"></td>
+                    <td style="padding:8px;"><strong x-text="automationJobStatusLabel(job.status)"></strong><div class="placeholder-text" style="font-size:12px;" x-text="formatAutomationJobDate(job.created_at)"></div></td>
+                    <td style="padding:8px;" x-text="automationJobProgress(job)"></td>
+                    <td style="padding:8px;" x-text="automationJobRuntime(job)"></td>
+                    <td style="padding:8px;max-width:260px;" x-text="automationJobStats(job)"></td>
+                    <td style="padding:8px;" x-text="job.failure_count || 0"></td>
+                    <td style="padding:8px;white-space:nowrap;">
+                      <button class="btn btn-sm" x-show="automationJobCanStop(job)" @click="stopAutomationJob(job)" :disabled="automationJobActionId === job.job_id">停止</button>
+                      <button class="btn btn-sm btn-primary" x-show="automationJobCanRetry(job)" @click="retryAutomationJob(job)" :disabled="automationJobActionId === job.job_id">重试</button>
+                      <span class="placeholder-text" x-show="!automationJobCanStop(job) && !automationJobCanRetry(job)">—</span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 

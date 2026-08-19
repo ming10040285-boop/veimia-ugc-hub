@@ -36,6 +36,11 @@ function adminApp() {
     workflowError: '',
     workflowCampaignId: '',
     workflowJobMessage: '',
+    automationJobs: [],
+    automationJobsLoading: false,
+    automationJobsError: '',
+    automationJobSubmitting: false,
+    automationJobActionId: '',
     adminApiToken: sessionStorage.getItem('veimia_admin_api_token') || '',
     adminApiTokenDraft: sessionStorage.getItem('veimia_admin_api_token') || '',
 
@@ -2196,6 +2201,10 @@ function adminApp() {
       this.workflowParticipants = [];
       this.workflowError = '';
       this.workflowJobMessage = '';
+      this.automationJobs = [];
+      this.automationJobsError = '';
+      this.automationJobSubmitting = false;
+      this.automationJobActionId = '';
       this.creatorsError = '';
       sessionStorage.removeItem('veimia_admin_api_token');
       try {
@@ -2281,15 +2290,20 @@ function adminApp() {
       this.restoreRememberedAdminLogin();
       this.workflowError = '';
       this.workflowJobMessage = '';
+      this.automationJobsError = '';
       if (!this.workflowCampaignId && this.campaigns.length > 0) {
         this.workflowCampaignId = this.campaigns[0].campaign_id;
       }
       if (!this.adminApiToken) {
         this.workflowParticipants = [];
-        this.workflowError = '请先在“达人管理”中完成管理员登录。';
+        this.automationJobs = [];
+        const message = '请先在“达人管理”中完成管理员登录。';
+        if (tab === 'jobs') this.automationJobsError = message;
+        else this.workflowError = message;
         return;
       }
-      if (tab !== 'jobs') this.loadWorkflowParticipants();
+      if (tab === 'jobs') this.loadAutomationJobs();
+      else this.loadWorkflowParticipants();
     },
 
     async loadWorkflowParticipants() {
@@ -2342,12 +2356,162 @@ function adminApp() {
       }
     },
 
-    runWorkflowJob(jobType) {
-      const labels = {
-        COMMENT_IMPORT: 'Instagram 评论导入',
-        PROFILE_SCREENING: 'Instagram 主页检查'
-      };
-      this.workflowJobMessage = `${labels[jobType] || jobType}入口已建立；待后续配置 Instagram 数据源后启用。`;
+    async loadAutomationJobs() {
+      this.restoreRememberedAdminLogin();
+      this.automationJobsError = '';
+      if (!this.adminApiToken) {
+        this.automationJobs = [];
+        this.automationJobsError = '请先在“达人管理”中完成管理员登录。';
+        return;
+      }
+      if (!this.workflowCampaignId) {
+        this.automationJobs = [];
+        return;
+      }
+      this.automationJobsLoading = true;
+      try {
+        const query = new URLSearchParams({
+          campaign_id: this.workflowCampaignId,
+          limit: '100'
+        });
+        const result = await this.crmRequest('/api/admin/jobs?' + query.toString());
+        this.automationJobs = result.data || [];
+      } catch (error) {
+        this.automationJobs = [];
+        this.automationJobsError = error.message || '加载任务记录失败。';
+      } finally {
+        this.automationJobsLoading = false;
+      }
+    },
+
+    async startAutomationJob(jobType) {
+      this.automationJobsError = '';
+      this.workflowJobMessage = '';
+      if (!this.workflowCampaignId) {
+        this.automationJobsError = '请先选择 Campaign。';
+        return;
+      }
+      this.automationJobSubmitting = true;
+      try {
+        await this.crmRequest('/api/admin/jobs?action=start', {
+          method: 'POST',
+          body: JSON.stringify({
+            campaign_id: this.workflowCampaignId,
+            job_type: jobType,
+            input: {}
+          })
+        });
+        this.workflowJobMessage = `${this.automationJobTypeLabel(jobType)}已加入等待队列。`;
+        await this.loadAutomationJobs();
+      } catch (error) {
+        this.automationJobsError = error.message || '启动任务失败。';
+      } finally {
+        this.automationJobSubmitting = false;
+      }
+    },
+
+    async stopAutomationJob(job) {
+      if (!window.confirm('确认停止这个任务吗？')) return;
+      this.automationJobsError = '';
+      this.workflowJobMessage = '';
+      this.automationJobActionId = job.job_id;
+      try {
+        const result = await this.crmRequest('/api/admin/jobs?action=stop', {
+          method: 'POST',
+          body: JSON.stringify({ job_id: job.job_id })
+        });
+        this.workflowJobMessage = result.data.status === 'stop_requested'
+          ? '停止请求已提交，执行器将在下一个安全检查点停止。'
+          : '任务已停止。';
+        await this.loadAutomationJobs();
+      } catch (error) {
+        this.automationJobsError = error.message || '停止任务失败。';
+      } finally {
+        this.automationJobActionId = '';
+      }
+    },
+
+    async retryAutomationJob(job) {
+      this.automationJobsError = '';
+      this.workflowJobMessage = '';
+      this.automationJobActionId = job.job_id;
+      try {
+        await this.crmRequest('/api/admin/jobs?action=retry', {
+          method: 'POST',
+          body: JSON.stringify({ job_id: job.job_id })
+        });
+        this.workflowJobMessage = '已创建新的重试任务，原任务记录会继续保留。';
+        await this.loadAutomationJobs();
+      } catch (error) {
+        this.automationJobsError = error.message || '重试任务失败。';
+      } finally {
+        this.automationJobActionId = '';
+      }
+    },
+
+    automationJobTypeLabel(jobType) {
+      return ({
+        COMMENT_IMPORT: '评论用户导入',
+        PROFILE_SCREENING: '候选主页筛选',
+        UGC_MONITORING: 'UGC 发布监控'
+      })[jobType] || jobType;
+    },
+
+    automationJobStatusLabel(status) {
+      return ({
+        queued: '等待中', running: '运行中', stop_requested: '正在停止',
+        succeeded: '已完成', failed: '失败', stopped: '已停止'
+      })[status] || status || '—';
+    },
+
+    automationJobCampaignLabel(campaignId) {
+      const campaign = this.campaigns.find(item => item.campaign_id === campaignId);
+      return campaign?.campaign_name || campaignId || '—';
+    },
+
+    automationJobCanStop(job) {
+      return ['queued', 'running', 'stop_requested'].includes(job.status);
+    },
+
+    automationJobCanRetry(job) {
+      return ['failed', 'stopped'].includes(job.status);
+    },
+
+    automationJobProgress(job) {
+      const current = Math.max(Number(job.progress_current) || 0, 0);
+      const total = Math.max(Number(job.progress_total) || 0, 0);
+      if (!total) return `${current} / —`;
+      return `${current} / ${total} (${Math.min(Math.round(current / total * 100), 100)}%)`;
+    },
+
+    automationJobRuntime(job) {
+      if (!job.started_at) return '未开始';
+      const started = new Date(job.started_at).getTime();
+      const ended = job.finished_at ? new Date(job.finished_at).getTime() : Date.now();
+      if (!Number.isFinite(started) || !Number.isFinite(ended)) return '—';
+      let seconds = Math.max(Math.floor((ended - started) / 1000), 0);
+      const hours = Math.floor(seconds / 3600);
+      seconds %= 3600;
+      const minutes = Math.floor(seconds / 60);
+      seconds %= 60;
+      if (hours) return `${hours}小时 ${minutes}分`;
+      if (minutes) return `${minutes}分 ${seconds}秒`;
+      return `${seconds}秒`;
+    },
+
+    automationJobStats(job) {
+      const stats = job.stats && typeof job.stats === 'object' ? job.stats : {};
+      const entries = Object.entries(stats);
+      if (!entries.length) return job.error_message || '—';
+      const labels = { imported: '导入', screened: '已筛选', found: '发现', updated: '更新', failed: '失败' };
+      return entries.map(([key, value]) => `${labels[key] || key}: ${value}`).join('；');
+    },
+
+    formatAutomationJobDate(value) {
+      if (!value) return '—';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString('zh-CN', { hour12: false });
     },
 
     exportWorkflowCsv() {
