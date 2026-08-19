@@ -1270,27 +1270,25 @@
     var campaignId = getCampaignIdFromUrl();
 
     if (!campaignId) {
-      // No campaign in URL — load the "current" active campaign
-      var currentUrl = '/config/current.json?t=' + Date.now();
-      fetch(currentUrl).then(function (resp) {
+      // No campaign in URL — read GitHub first so an Admin publish takes effect
+      // immediately, then fall back to the deployed static file.
+      var rawCurrentUrl = 'https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/config/current.json?t=' + Date.now();
+      fetch(rawCurrentUrl, { cache: 'no-store' }).then(function (resp) {
         if (resp.ok) return resp.json();
-        throw new Error('No current.json');
+        throw new Error('No GitHub current.json');
+      }).catch(function () {
+        return fetch('/config/current.json?t=' + Date.now(), { cache: 'no-store' }).then(function (resp) {
+          if (resp.ok) return resp.json();
+          throw new Error('No current.json');
+        });
       }).then(function (data) {
         if (data && data.campaign_id) {
           loadAndRenderCampaign(data.campaign_id);
         } else {
           console.error('[campaign] No campaign_id in current.json');
         }
-      }).catch(function () {
-        // Fallback: try GitHub raw
-        var rawUrl = 'https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/config/current.json?t=' + Date.now();
-        fetch(rawUrl).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
-          if (data && data.campaign_id) {
-            loadAndRenderCampaign(data.campaign_id);
-          }
-        }).catch(function () {
-          console.error('[campaign] No campaign ID found');
-        });
+      }).catch(function (error) {
+        console.error('[campaign] No campaign ID found:', error);
       });
       return;
     }

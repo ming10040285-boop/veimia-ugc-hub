@@ -91,6 +91,7 @@ function adminApp() {
     createCampaignError: '',
     campaignError: '',
     campaignSuccess: '',
+    campaignActionLoading: false,
 
     // Drag-to-reorder state
     dragIndex: null,
@@ -126,8 +127,9 @@ function adminApp() {
         const response = await fetch('/api/admin/campaigns');
         if (response.ok) {
           const data = await response.json();
-          if (data.campaigns && data.campaigns.length > 0) {
-            this.campaigns = data.campaigns;
+          const apiCampaigns = data.campaigns || data.data;
+          if (Array.isArray(apiCampaigns) && apiCampaigns.length > 0) {
+            this.campaigns = apiCampaigns;
             return;
           }
         }
@@ -726,9 +728,14 @@ function adminApp() {
     /**
      * Save campaign configuration (name, mode, market, hero, intro)
      */
-    async saveCampaignConfig() {
+    async saveCampaignConfig(options = {}) {
+      const publish = options.publish === true;
       this.campaignError = '';
       this.campaignSuccess = '';
+      if (publish && this.assignedProducts.length === 0) {
+        this.campaignError = '请至少分配 1 个商品。';
+        return false;
+      }
 
       const storageInput = this.editingCampaign.registration_storage || {};
       const registrationStorage = this.buildRegistrationStorage(
@@ -769,6 +776,7 @@ function adminApp() {
       // Build full campaign data
       const campaignData = {
         ...this.editingCampaign,
+        status: publish ? 'published' : (this.editingCampaign.status || 'draft'),
         candidate_screening: candidateScreening,
         ...(registrationStorage ? { registration_storage: registrationStorage } : {}),
         products: this.assignedProducts.map((p, i) => ({
@@ -797,29 +805,37 @@ function adminApp() {
       delete campaignData._configExpanded;
       if (!registrationStorage) delete campaignData.registration_storage;
 
-      // Save via GitHub API (always save as demo.json for the main campaign)
       const savePath = 'public/config/campaigns/' + (this.editingCampaign.campaign_id || 'demo') + '.json';
+      this.campaignActionLoading = true;
       try {
+        const requestBody = publish
+          ? { action: 'publish', campaign: campaignData }
+          : { path: savePath, content: campaignData };
         const response = await fetch('/api/admin/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            path: savePath,
-            content: campaignData
-          })
+          body: JSON.stringify(requestBody)
         });
+        const result = await response.json().catch(() => ({}));
 
         if (response.ok) {
-          this.campaignSuccess = '保存成功！约 30 秒后前端页面将更新。';
-          // Update local state
-          const idx = this.campaigns.findIndex(c => c.campaign_id === this.editingCampaign.campaign_id);
-          if (idx >= 0) this.campaigns[idx] = campaignData;
-        } else {
-          const err = await response.json().catch(() => ({}));
-          this.campaignError = err.message || '保存失败。';
+          const savedCampaign = result.data?.campaign || campaignData;
+          this.editingCampaign = { ...this.editingCampaign, ...savedCampaign };
+          const idx = this.campaigns.findIndex(c => c.campaign_id === savedCampaign.campaign_id);
+          if (idx >= 0) this.campaigns[idx] = { ...this.campaigns[idx], ...savedCampaign };
+          this.campaignSuccess = publish
+            ? '发布成功：活动已保存、标记为已发布并设为前端当前活动。'
+            : '保存成功！前端将读取最新配置。';
+          this.refreshPreview();
+          return true;
         }
+        this.campaignError = result.message || (publish ? '发布失败。' : '保存失败。');
+        return false;
       } catch (error) {
-        this.campaignError = '网络错误: ' + (error.message || '保存失败') + ' — 如图片过大，请使用图片 URL。';
+        this.campaignError = '网络错误: ' + (error.message || (publish ? '发布失败' : '保存失败'));
+        return false;
+      } finally {
+        this.campaignActionLoading = false;
       }
     },
 
@@ -853,41 +869,11 @@ function adminApp() {
     },
 
     /**
-     * Publish campaign - validate products exist first
+     * Publish the full Campaign and make it the public homepage Campaign.
      */
     async publishCampaign() {
-      this.campaignError = '';
-      this.campaignSuccess = '';
-
-      // Check if products are assigned
-      if (this.assignedProducts.length === 0) {
-        this.campaignError = '请至少分配 1 个商品。';
-        return;
-      }
-
-      try {
-        const payload = {
-          status: 'published'
-        };
-
-        const response = await fetch(`/api/admin/campaigns/${this.editingCampaign.campaign_id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-          this.editingCampaign.status = 'published';
-          this.campaignSuccess = '活动已发布。';
-          await this.loadCampaigns();
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          this.campaignError = errorData.message || '发布失败。';
-        }
-      } catch (error) {
-        console.error('Publish campaign error:', error);
-        this.campaignError = '网络错误。';
-      }
+      if (this.campaignActionLoading) return;
+      await this.saveCampaignConfig({ publish: true });
     },
 
     /**
@@ -899,7 +885,12 @@ function adminApp() {
       this.campaignSuccess = '';
 
       if (!this.editingCampaign || !this.editingCampaign.campaign_id) return;
+      if (this.editingCampaign.status !== 'published') {
+        this.campaignError = '草稿不能直接设为当前活动，请点击“发布”；发布会同时切换前端活动。';
+        return;
+      }
 
+      this.campaignActionLoading = true;
       try {
         const response = await fetch('/api/admin/save', {
           method: 'POST',
@@ -909,15 +900,17 @@ function adminApp() {
             content: { campaign_id: this.editingCampaign.campaign_id }
           })
         });
+        const result = await response.json().catch(() => ({}));
 
         if (response.ok) {
-          this.campaignSuccess = '已设为当前活动！前端首页将展示此活动（约 30 秒后生效）。';
+          this.campaignSuccess = '已设为当前活动，前端首页会读取该活动。';
         } else {
-          const err = await response.json().catch(() => ({}));
-          this.campaignError = err.message || '设置失败。';
+          this.campaignError = result.message || '设置失败。';
         }
       } catch (error) {
         this.campaignError = '网络错误: ' + (error.message || '设置失败');
+      } finally {
+        this.campaignActionLoading = false;
       }
     },
 

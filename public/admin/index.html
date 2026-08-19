@@ -172,12 +172,15 @@
             <div class="campaign-edit-header">
               <h3 x-text="editingCampaign.campaign_name"></h3>
               <div class="form-actions">
-                <button class="btn" @click="closeCampaignEdit()">← 返回列表</button>
-                <button class="btn" @click="exportCampaignJson()">📥 导出 JSON</button>
-                <button class="btn btn-primary" @click="setAsCurrentCampaign()">🏠 设为当前活动</button>
-                <button class="btn btn-primary" @click="publishCampaign()">发布</button>
+                <button class="btn" @click="closeCampaignEdit()" :disabled="campaignActionLoading">← 返回列表</button>
+                <button class="btn" @click="exportCampaignJson()" :disabled="campaignActionLoading">📥 导出 JSON</button>
+                <button class="btn btn-primary" @click="setAsCurrentCampaign()" :disabled="campaignActionLoading">🏠 设为当前活动</button>
+                <button class="btn btn-primary" @click="publishCampaign()" :disabled="campaignActionLoading" x-text="campaignActionLoading ? '处理中...' : '发布'"></button>
               </div>
             </div>
+            <div class="info-message" x-show="campaignActionLoading" style="margin-bottom:12px;">正在保存并同步前端，请不要关闭页面...</div>
+            <div class="error-message" x-show="campaignError" x-text="campaignError" style="margin-bottom:12px;"></div>
+            <div class="success-message" x-show="campaignSuccess" x-text="campaignSuccess" style="margin-bottom:12px;"></div>
 
             <!-- Campaign Config Section -->
             <div class="card campaign-edit-section">
@@ -281,7 +284,7 @@
               </div>
 
               <div class="form-actions">
-                <button class="btn btn-primary" @click="saveCampaignConfig()">保存设置</button>
+                <button class="btn btn-primary" @click="saveCampaignConfig()" :disabled="campaignActionLoading" x-text="campaignActionLoading ? '保存中...' : '保存设置'"></button>
               </div>
             </div>
 
@@ -475,9 +478,7 @@
                 <button class="btn btn-primary" @click="saveProductAssignment()">保存商品分配</button>
               </div>
 
-              <!-- Error for publish with no products -->
-              <div class="error-message" x-show="campaignError" x-text="campaignError" style="margin-top:12px;"></div>
-              <div class="success-message" x-show="campaignSuccess" x-text="campaignSuccess" style="margin-top:12px;"></div>
+              <!-- Campaign action feedback is displayed below the sticky header. -->
             </div>
 
             <!-- Registration Status Section -->
