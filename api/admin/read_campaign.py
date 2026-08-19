@@ -40,34 +40,45 @@ def _handle_get(handler):
         _send_json(handler, 400, {"error": "Missing 'id' query parameter"})
         return
 
-    token = os.environ.get("GITHUB_TOKEN")
-    if not token:
-        _send_json(handler, 500, {"error": "GITHUB_TOKEN not configured"})
-        return
-
-    # Read file from GitHub Contents API (no cache)
+    # Prefer the authenticated GitHub Contents API so reads do not consume the
+    # low anonymous rate limit. If the configured token is missing, expired, or
+    # invalid, retry the same public repository request without authentication.
     path = f"public/config/campaigns/{campaign_id}.json"
     api_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{path}?ref={GITHUB_BRANCH}"
+    token = str(os.environ.get("GITHUB_TOKEN") or "").strip()
 
-    req = urllib.request.Request(api_url)
-    req.add_header("Authorization", f"Bearer {token}")
-    req.add_header("Accept", "application/vnd.github.v3+json")
-    req.add_header("User-Agent", "veimia-ugc-hub")
+    def build_request(include_token):
+        request = urllib.request.Request(api_url)
+        if include_token and token:
+            request.add_header("Authorization", f"Bearer {token}")
+        request.add_header("Accept", "application/vnd.github.v3+json")
+        request.add_header("User-Agent", "veimia-ugc-hub")
+        return request
+
+    def read_campaign(request):
+        with urllib.request.urlopen(request, timeout=8) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        content_bytes = base64.b64decode(data.get("content", ""))
+        return json.loads(content_bytes.decode("utf-8"))
 
     try:
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            content_b64 = data.get("content", "")
-            content_bytes = base64.b64decode(content_b64)
-            campaign = json.loads(content_bytes.decode("utf-8"))
-            _send_json(handler, 200, campaign)
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
+        try:
+            campaign = read_campaign(build_request(include_token=bool(token)))
+        except urllib.error.HTTPError as error:
+            if token and error.code in (401, 403):
+                campaign = read_campaign(build_request(include_token=False))
+            else:
+                raise
+        _send_json(handler, 200, campaign)
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
             _send_json(handler, 404, {"error": "Campaign not found"})
+        elif error.code == 403:
+            _send_json(handler, 503, {"error": "GitHub public read rate limit reached"})
         else:
-            _send_json(handler, 500, {"error": f"GitHub API error: {e.code}"})
-    except Exception as e:
-        _send_json(handler, 500, {"error": str(e)})
+            _send_json(handler, 500, {"error": f"GitHub API error: {error.code}"})
+    except Exception as error:
+        _send_json(handler, 500, {"error": str(error)})
 
 
 class handler(BaseHTTPRequestHandler):
