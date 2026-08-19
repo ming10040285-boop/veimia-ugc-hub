@@ -31,6 +31,17 @@ function adminApp() {
     candidateCampaignFilter: '',
     candidateStatusFilter: '',
     candidateForm: { campaign_id: '', instagram_username: '' },
+
+    // Campaign-centric Candidate + Participant lifecycle workbench
+    campaignLifecycleCandidates: [],
+    campaignLifecycleParticipants: [],
+    campaignLifecycleLoading: false,
+    campaignLifecycleError: '',
+    campaignLifecycleMessage: '',
+    campaignLifecycleSearch: '',
+    campaignLifecycleStageFilter: '',
+    campaignLifecycleUpdatingId: '',
+
     workflowParticipants: [],
     workflowLoading: false,
     workflowError: '',
@@ -533,7 +544,13 @@ function adminApp() {
       }));
       this.campaignError = '';
       this.campaignSuccess = '';
+      this.campaignLifecycleSearch = '';
+      this.campaignLifecycleStageFilter = '';
+      this.campaignLifecycleError = '';
+      this.campaignLifecycleMessage = '';
+      this.restoreRememberedAdminLogin();
       this.selectCampaign(campaign.campaign_id);
+      this.loadCampaignLifecycle();
     },
 
     /**
@@ -552,6 +569,14 @@ function adminApp() {
       this.registrationImportResult = '';
       this.registrationImportError = '';
       this.showRegistrations = false;
+      this.campaignLifecycleCandidates = [];
+      this.campaignLifecycleParticipants = [];
+      this.campaignLifecycleLoading = false;
+      this.campaignLifecycleError = '';
+      this.campaignLifecycleMessage = '';
+      this.campaignLifecycleSearch = '';
+      this.campaignLifecycleStageFilter = '';
+      this.campaignLifecycleUpdatingId = '';
     },
 
     /**
@@ -2180,6 +2205,7 @@ function adminApp() {
       }
       this.creatorsError = '';
       this.loadCreators();
+      if (this.editingCampaign) this.loadCampaignLifecycle();
     },
 
     clearAdminApiToken() {
@@ -2191,6 +2217,12 @@ function adminApp() {
       this.candidates = [];
       this.candidatesTotal = 0;
       this.candidatesError = '';
+      this.campaignLifecycleCandidates = [];
+      this.campaignLifecycleParticipants = [];
+      this.campaignLifecycleLoading = false;
+      this.campaignLifecycleError = '';
+      this.campaignLifecycleMessage = '';
+      this.campaignLifecycleUpdatingId = '';
       this.workflowParticipants = [];
       this.workflowError = '';
       this.workflowJobMessage = '';
@@ -2275,6 +2307,327 @@ function adminApp() {
         if (index >= 0) this.creators[index] = result.data;
       } catch (error) {
         this.creatorsError = error.message || '更新 Creator 标签失败。';
+      }
+    },
+
+    // =============================================
+    // Campaign-centric Lifecycle Workbench
+    // =============================================
+
+    async loadCampaignLifecycle() {
+      this.restoreRememberedAdminLogin();
+      this.campaignLifecycleError = '';
+      this.campaignLifecycleMessage = '';
+      if (!this.editingCampaign) {
+        this.campaignLifecycleCandidates = [];
+        this.campaignLifecycleParticipants = [];
+        return;
+      }
+      if (!this.adminApiToken) {
+        this.campaignLifecycleCandidates = [];
+        this.campaignLifecycleParticipants = [];
+        return;
+      }
+
+      this.campaignLifecycleLoading = true;
+      const campaignId = this.editingCampaign.campaign_id;
+      const candidateQuery = new URLSearchParams({ campaign_id: campaignId, limit: '200' });
+      const participantQuery = new URLSearchParams({ campaign_id: campaignId, limit: '200' });
+      try {
+        const [candidateResult, participantResult] = await Promise.allSettled([
+          this.crmRequest('/api/admin/candidates?' + candidateQuery.toString()),
+          this.crmRequest('/api/admin/participants?' + participantQuery.toString())
+        ]);
+
+        if (candidateResult.status === 'fulfilled') {
+          this.campaignLifecycleCandidates = (candidateResult.value.data || [])
+            .filter(candidate => candidate.screening_status !== 'promoted');
+        } else {
+          this.campaignLifecycleCandidates = [];
+        }
+        if (participantResult.status === 'fulfilled') {
+          this.campaignLifecycleParticipants = participantResult.value.data || [];
+        } else {
+          this.campaignLifecycleParticipants = [];
+        }
+
+        const failures = [candidateResult, participantResult]
+          .filter(result => result.status === 'rejected')
+          .map(result => result.reason);
+        const authFailure = failures.find(error => error && (error.status === 401 || error.status === 403));
+        if (authFailure) {
+          this.clearAdminApiToken();
+          this.campaignLifecycleError = '管理员访问码无效，请到“达人管理”重新登录。';
+        } else if (failures.length === 2) {
+          this.campaignLifecycleError = failures[0].message || '加载 Campaign 达人流程失败。';
+        } else if (candidateResult.status === 'rejected') {
+          this.campaignLifecycleError = 'Participant 已加载，但 Candidate 数据加载失败：' + (candidateResult.reason.message || '请检查候选人数据表');
+        } else if (participantResult.status === 'rejected') {
+          this.campaignLifecycleError = 'Candidate 已加载，但 Participant 数据加载失败：' + (participantResult.reason.message || '请检查参与者数据表');
+        }
+      } finally {
+        this.campaignLifecycleLoading = false;
+      }
+    },
+
+    campaignLifecycleRows() {
+      const candidates = this.campaignLifecycleCandidates.map(candidate => ({
+        key: 'candidate-' + candidate.candidate_id,
+        id: candidate.candidate_id,
+        kind: 'candidate',
+        stage: 'candidate_' + (candidate.screening_status || 'pending'),
+        source: candidate
+      }));
+      const participants = this.campaignLifecycleParticipants.map(participant => ({
+        key: 'participant-' + participant.participant_id,
+        id: participant.participant_id,
+        kind: 'participant',
+        stage: this.campaignLifecycleStage(participant),
+        source: participant
+      }));
+      return [...candidates, ...participants];
+    },
+
+    campaignLifecycleStage(participant) {
+      if (participant.ugc_status === 'completed') return 'completed';
+      if (participant.ugc_status === 'posted') return 'ugc_posted';
+      if (participant.ugc_status === 'waiting_for_content') return 'waiting_ugc';
+      if (participant.shipping_status === 'delivered') return 'delivered';
+      if (participant.shipping_status === 'in_transit') return 'in_transit';
+      if (participant.shipping_status === 'shipped') return 'shipped';
+      if (participant.shipping_status === 'preparing') return 'waiting_shipping';
+      if (participant.form_status === 'submitted') return 'form_submitted';
+      if (participant.dm_status === 'agreed') return 'dm_agreed';
+      if (participant.dm_status === 'replied') return 'dm_replied';
+      if (participant.dm_status === 'sent') return 'dm_sent';
+      return 'waiting_dm';
+    },
+
+    campaignLifecycleSummaryStages() {
+      return [
+        { value: 'candidate_pending', label: 'Candidate 待筛选' },
+        { value: 'candidate_manual_review', label: 'Candidate 人工确认' },
+        { value: 'candidate_eligible', label: 'Candidate 符合' },
+        { value: 'candidate_filtered', label: 'Candidate 已过滤' },
+        { value: 'waiting_dm', label: '待私信' },
+        { value: 'dm_sent', label: '已私信' },
+        { value: 'dm_replied', label: '已回复' },
+        { value: 'dm_agreed', label: '已同意' },
+        { value: 'form_submitted', label: '已填写' },
+        { value: 'waiting_shipping', label: '待发货' },
+        { value: 'shipped', label: '已发货' },
+        { value: 'in_transit', label: '运输中' },
+        { value: 'delivered', label: '已签收' },
+        { value: 'waiting_ugc', label: '待 UGC' },
+        { value: 'ugc_posted', label: '已发帖' },
+        { value: 'completed', label: 'Completed' }
+      ];
+    },
+
+    campaignLifecycleStageLabel(stage) {
+      const match = this.campaignLifecycleSummaryStages().find(item => item.value === stage);
+      return match ? match.label : (stage || '—');
+    },
+
+    campaignLifecycleStageCount(stage) {
+      return this.campaignLifecycleRows().filter(row => row.stage === stage).length;
+    },
+
+    filteredCampaignLifecycleRows() {
+      const search = String(this.campaignLifecycleSearch || '').trim().toLowerCase().replace(/^@/, '');
+      return this.campaignLifecycleRows().filter(row => {
+        if (this.campaignLifecycleStageFilter && row.stage !== this.campaignLifecycleStageFilter) return false;
+        if (!search) return true;
+        const source = row.source;
+        return [
+          source.instagram_username,
+          source.product_id,
+          source.product_name,
+          source.order_number,
+          source.tracking_number,
+          source.carrier
+        ].some(value => String(value || '').toLowerCase().includes(search));
+      });
+    },
+
+    campaignParticipantProductOptions(participant) {
+      const options = this.assignedProducts.map(product => ({
+        product_id: product.product_id,
+        product_name: product.product_name || product.product_id
+      }));
+      if (participant.product_id && !options.some(product => product.product_id === participant.product_id)) {
+        options.unshift({
+          product_id: participant.product_id,
+          product_name: participant.product_name || participant.product_id
+        });
+      }
+      return options;
+    },
+
+    async patchCampaignParticipant(participant, changes) {
+      this.campaignLifecycleError = '';
+      this.campaignLifecycleMessage = '';
+      this.campaignLifecycleUpdatingId = participant.participant_id;
+      try {
+        const result = await this.crmRequest(
+          '/api/admin/participants?participant_id=' + encodeURIComponent(participant.participant_id),
+          { method: 'PATCH', body: JSON.stringify(changes) }
+        );
+        const index = this.campaignLifecycleParticipants.findIndex(
+          item => item.participant_id === participant.participant_id
+        );
+        if (index >= 0) {
+          this.campaignLifecycleParticipants[index] = {
+            ...this.campaignLifecycleParticipants[index],
+            ...result.data
+          };
+        }
+        this.campaignLifecycleMessage = '达人流程已保存。';
+      } catch (error) {
+        if (error.status === 401 || error.status === 403) {
+          this.clearAdminApiToken();
+          this.campaignLifecycleError = '管理员访问码无效，请到“达人管理”重新登录。';
+        } else {
+          this.campaignLifecycleError = error.message || '更新达人流程失败。';
+        }
+      } finally {
+        this.campaignLifecycleUpdatingId = '';
+      }
+    },
+
+    async updateCampaignParticipant(participant, field, value) {
+      const normalizedValue = typeof value === 'string' ? value.trim() : value;
+      await this.patchCampaignParticipant(participant, {
+        [field]: normalizedValue === '' ? null : normalizedValue
+      });
+    },
+
+    async updateCampaignParticipantProduct(participant, productId) {
+      const product = this.assignedProducts.find(item => item.product_id === productId);
+      await this.patchCampaignParticipant(participant, {
+        product_id: product ? product.product_id : null,
+        product_name: product ? (product.product_name || product.product_id) : null
+      });
+    },
+
+    replaceCampaignLifecycleCandidate(candidate) {
+      const index = this.campaignLifecycleCandidates.findIndex(
+        item => item.candidate_id === candidate.candidate_id
+      );
+      if (index >= 0) this.campaignLifecycleCandidates[index] = candidate;
+    },
+
+    async editCampaignCandidateProfile(candidate) {
+      const followerInput = prompt('请输入粉丝数（非负整数）：', candidate.follower_count === null ? '' : String(candidate.follower_count));
+      if (followerInput === null) return;
+      const followerCount = Number(followerInput);
+      if (!Number.isInteger(followerCount) || followerCount < 0) {
+        this.campaignLifecycleError = '粉丝数必须是非负整数。';
+        return;
+      }
+      const privacyInput = prompt('请输入“公开”或“私密”：', candidate.is_private === null ? '' : (candidate.is_private ? '私密' : '公开'));
+      if (privacyInput === null) return;
+      const privacy = privacyInput.trim();
+      if (!['公开', '私密'].includes(privacy)) {
+        this.campaignLifecycleError = '账号状态只能填写“公开”或“私密”。';
+        return;
+      }
+      const lastPostInput = prompt('请输入最近发帖日期（YYYY-MM-DD）：', candidate.last_post_at ? candidate.last_post_at.slice(0, 10) : '');
+      if (lastPostInput === null) return;
+      const lastPost = new Date(lastPostInput.trim() + 'T00:00:00Z');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(lastPostInput.trim()) || Number.isNaN(lastPost.getTime())) {
+        this.campaignLifecycleError = '最近发帖日期格式应为 YYYY-MM-DD。';
+        return;
+      }
+
+      this.campaignLifecycleUpdatingId = candidate.candidate_id;
+      this.campaignLifecycleError = '';
+      try {
+        const result = await this.crmRequest(
+          '/api/admin/candidates?candidate_id=' + encodeURIComponent(candidate.candidate_id),
+          {
+            method: 'PATCH',
+            body: JSON.stringify({
+              follower_count: followerCount,
+              is_private: privacy === '私密',
+              last_post_at: lastPost.toISOString(),
+              profile_check_status: 'success'
+            })
+          }
+        );
+        this.replaceCampaignLifecycleCandidate(result.data);
+        this.campaignLifecycleMessage = '候选人资料已保存。';
+      } catch (error) {
+        this.campaignLifecycleError = error.message || '保存候选人资料失败。';
+      } finally {
+        this.campaignLifecycleUpdatingId = '';
+      }
+    },
+
+    async evaluateCampaignCandidate(candidate) {
+      if (!confirm(`确认按 @${candidate.instagram_username} 所属 Campaign 的规则执行筛选？`)) return;
+      this.campaignLifecycleUpdatingId = candidate.candidate_id;
+      this.campaignLifecycleError = '';
+      try {
+        const result = await this.crmRequest('/api/admin/candidates?action=evaluate', {
+          method: 'POST',
+          body: JSON.stringify({ candidate_id: candidate.candidate_id })
+        });
+        this.replaceCampaignLifecycleCandidate(result.data);
+        this.campaignLifecycleMessage = '已按当前 Campaign 规则完成评估。';
+      } catch (error) {
+        this.campaignLifecycleError = error.message || '按规则评估候选人失败。';
+      } finally {
+        this.campaignLifecycleUpdatingId = '';
+      }
+    },
+
+    async updateCampaignCandidateStatus(candidate, status) {
+      let reason = '';
+      if (status === 'manual_review' || status === 'filtered') {
+        reason = prompt(status === 'filtered' ? '请输入过滤原因：' : '请输入需要人工确认的原因：') || '';
+        if (!reason.trim()) return;
+      }
+      this.campaignLifecycleUpdatingId = candidate.candidate_id;
+      this.campaignLifecycleError = '';
+      try {
+        const result = await this.crmRequest(
+          '/api/admin/candidates?candidate_id=' + encodeURIComponent(candidate.candidate_id),
+          {
+            method: 'PATCH',
+            body: JSON.stringify({ screening_status: status, screening_reason: reason || null })
+          }
+        );
+        this.replaceCampaignLifecycleCandidate(result.data);
+        this.campaignLifecycleMessage = '候选人状态已保存。';
+      } catch (error) {
+        this.campaignLifecycleError = error.message || '更新候选人状态失败。';
+      } finally {
+        this.campaignLifecycleUpdatingId = '';
+      }
+    },
+
+    async promoteCampaignCandidate(candidate) {
+      if (candidate.screening_status !== 'eligible') return;
+      if (!confirm(`确认将 @${candidate.instagram_username} 加入 Creator CRM 和当前 Campaign？`)) return;
+      const product = this.assignedProducts.length === 1 ? this.assignedProducts[0] : null;
+      this.campaignLifecycleUpdatingId = candidate.candidate_id;
+      this.campaignLifecycleError = '';
+      try {
+        await this.crmRequest('/api/admin/candidates?action=promote', {
+          method: 'POST',
+          body: JSON.stringify({
+            candidate_id: candidate.candidate_id,
+            product_id: product ? product.product_id : null,
+            product_name: product ? (product.product_name || product.product_id) : null
+          })
+        });
+        await this.loadCampaignLifecycle();
+        this.campaignLifecycleMessage = '候选人已进入 Creator CRM，并创建当前 Campaign Participant。';
+      } catch (error) {
+        this.campaignLifecycleError = error.message || '加入 Creator CRM 失败。';
+      } finally {
+        this.campaignLifecycleUpdatingId = '';
       }
     },
 

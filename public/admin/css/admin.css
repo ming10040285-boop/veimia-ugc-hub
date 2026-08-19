@@ -1390,3 +1390,246 @@ h3 {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* --------------------------------------------------------------------------
+   Campaign Participant Lifecycle Workbench
+   -------------------------------------------------------------------------- */
+.campaign-lifecycle-workbench {
+  padding: 20px;
+}
+
+.campaign-lifecycle-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.campaign-lifecycle-heading h4 {
+  margin: 0 0 4px;
+  padding: 0;
+  border: 0;
+}
+
+.campaign-lifecycle-heading p,
+.campaign-lifecycle-total,
+.campaign-lifecycle-actions {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.campaign-lifecycle-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.campaign-lifecycle-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 66px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: #f8fafc;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family);
+  text-align: left;
+  cursor: pointer;
+}
+
+.campaign-lifecycle-stat:hover,
+.campaign-lifecycle-stat.active {
+  border-color: var(--color-primary);
+  background: #eef2ff;
+  color: var(--color-primary);
+}
+
+.campaign-lifecycle-stat strong {
+  color: var(--color-text);
+  font-size: 1.15rem;
+}
+
+.campaign-lifecycle-filters {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 260px) auto;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.campaign-lifecycle-filters .form-group {
+  margin: 0;
+}
+
+.campaign-lifecycle-filters input,
+.campaign-lifecycle-filters select,
+.campaign-lifecycle-table input,
+.campaign-lifecycle-table select {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-white);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.campaign-lifecycle-total {
+  padding-bottom: 9px;
+  white-space: nowrap;
+}
+
+.campaign-lifecycle-loading,
+.campaign-lifecycle-empty {
+  padding: 28px 16px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.campaign-lifecycle-workbench .error-message,
+.campaign-lifecycle-workbench .success-message {
+  margin-bottom: 12px;
+}
+
+.campaign-lifecycle-table-wrap {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.campaign-lifecycle-table {
+  width: 100%;
+  min-width: 1580px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8rem;
+}
+
+.campaign-lifecycle-table th,
+.campaign-lifecycle-table td {
+  padding: 9px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  background: var(--color-white);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.campaign-lifecycle-table th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.campaign-lifecycle-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.campaign-lifecycle-table tr:hover td {
+  background: #fafbff;
+}
+
+.campaign-lifecycle-sticky-creator {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  width: 180px;
+  min-width: 180px;
+}
+
+.campaign-lifecycle-sticky-stage {
+  position: sticky;
+  left: 180px;
+  z-index: 2;
+  width: 150px;
+  min-width: 150px;
+  box-shadow: 1px 0 0 var(--color-border);
+}
+
+th.campaign-lifecycle-sticky-creator,
+th.campaign-lifecycle-sticky-stage {
+  z-index: 5;
+  background: #f8fafc;
+}
+
+.campaign-lifecycle-sticky-creator a {
+  display: block;
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.campaign-lifecycle-sticky-creator small {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+}
+
+.campaign-lifecycle-stage {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.campaign-candidate-details {
+  min-width: 680px;
+}
+
+.campaign-candidate-details span {
+  display: inline-block;
+  margin: 2px 14px 2px 0;
+  color: #475569;
+}
+
+.campaign-lifecycle-actions {
+  min-width: 270px;
+}
+
+.campaign-lifecycle-actions .btn {
+  margin: 2px;
+}
+
+.campaign-lifecycle-updating {
+  opacity: 0.65;
+}
+
+@media (max-width: 768px) {
+  .campaign-lifecycle-heading,
+  .campaign-lifecycle-filters {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .campaign-lifecycle-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .campaign-lifecycle-total {
+    padding: 0;
+  }
+
+  .campaign-lifecycle-sticky-creator {
+    width: 150px;
+    min-width: 150px;
+  }
+
+  .campaign-lifecycle-sticky-stage {
+    left: 150px;
+  }
+}
