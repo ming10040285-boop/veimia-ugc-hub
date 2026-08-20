@@ -122,12 +122,17 @@
               <!-- Campaign list -->
               <div class="campaign-list" x-show="campaigns.length > 0">
                 <template x-for="campaign in campaigns" :key="campaign.campaign_id">
-                  <div class="campaign-item" @click="openCampaignEdit(campaign)">
+                  <div
+                    class="campaign-item"
+                    :class="{ 'campaign-item-current': currentCampaignId === campaign.campaign_id }"
+                    @click="openCampaignEdit(campaign)"
+                  >
                     <div class="campaign-item-info">
                       <span class="campaign-item-name" x-text="campaign.campaign_name"></span>
                       <div class="campaign-item-meta">
                         <span class="badge" :class="campaign.product_mode === 'single' ? 'badge-single' : 'badge-multiple'" x-text="campaign.product_mode === 'single' ? '单品' : '多品'"></span>
                         <span class="badge" :class="campaign.status === 'published' ? 'badge-published' : 'badge-draft'" x-text="campaign.status === 'published' ? '已发布' : '草稿'"></span>
+                        <span class="badge badge-current" x-show="currentCampaignId === campaign.campaign_id">🏠 前端展示中</span>
                         <span x-text="formatDate(campaign.created_at)"></span>
                       </div>
                     </div>
@@ -149,7 +154,12 @@
               <div class="form-actions">
                 <button class="btn" @click="closeCampaignEdit()" :disabled="campaignActionLoading">← 返回列表</button>
                 <button class="btn" @click="exportCampaignJson()" :disabled="campaignActionLoading">📥 导出 JSON</button>
-                <button class="btn btn-primary" @click="setAsCurrentCampaign()" :disabled="campaignActionLoading">🏠 设为当前活动</button>
+                <button
+                  class="btn btn-primary"
+                  @click="setAsCurrentCampaign()"
+                  :disabled="campaignActionLoading || currentCampaignId === editingCampaign.campaign_id"
+                  x-text="currentCampaignId === editingCampaign.campaign_id ? '🏠 当前前端活动' : '🏠 设为当前活动'"
+                ></button>
                 <button class="btn btn-primary" @click="publishCampaign()" :disabled="campaignActionLoading" x-text="campaignActionLoading ? '处理中...' : '发布'"></button>
               </div>
             </div>

@@ -420,6 +420,16 @@ h3 {
   box-shadow: 0 2px 8px rgba(79, 70, 229, 0.08);
 }
 
+.campaign-item-current {
+  border-color: var(--color-primary);
+  background: #f5f3ff;
+  box-shadow: inset 4px 0 0 var(--color-primary);
+}
+
+.campaign-item-current:hover {
+  background: #eef2ff;
+}
+
 .campaign-item-info {
   display: flex;
   flex-direction: column;
@@ -467,6 +477,12 @@ h3 {
 .badge-published {
   background-color: #d1fae5;
   color: #065f46;
+}
+
+.badge-current {
+  background: var(--color-primary);
+  color: var(--color-white);
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.25);
 }
 
 .badge-single {

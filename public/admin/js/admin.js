@@ -64,6 +64,7 @@ function adminApp() {
 
     // Selected items
     selectedCampaignId: null,
+    currentCampaignId: '',
     selectedProductId: null,
 
     // Mobile preview
@@ -120,6 +121,7 @@ function adminApp() {
       try {
         this.loadSettings();
         await this.loadCampaigns();
+        await this.loadCurrentCampaign();
         await this.loadProducts();
         this.statusMessage = '就绪';
       } catch (error) {
@@ -171,6 +173,29 @@ function adminApp() {
         } catch (e) {}
       }
       this.campaigns = campaigns;
+    },
+
+    /**
+     * Load the Campaign currently displayed on the public homepage.
+     * Uses the same GitHub-first source and static fallback as campaign.js.
+     */
+    async loadCurrentCampaign() {
+      const rawUrl = 'https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/config/current.json?t=' + Date.now();
+      try {
+        let response;
+        try {
+          response = await fetch(rawUrl, { cache: 'no-store' });
+          if (!response.ok) throw new Error('GitHub current.json unavailable');
+        } catch {
+          response = await fetch('/config/current.json?t=' + Date.now(), { cache: 'no-store' });
+        }
+        if (!response.ok) throw new Error('current.json unavailable');
+        const data = await response.json();
+        this.currentCampaignId = String(data.campaign_id || '').trim();
+      } catch (error) {
+        console.error('Failed to load current campaign:', error);
+        this.currentCampaignId = '';
+      }
     },
 
     /**
@@ -848,6 +873,7 @@ function adminApp() {
           this.editingCampaign = { ...this.editingCampaign, ...savedCampaign };
           const idx = this.campaigns.findIndex(c => c.campaign_id === savedCampaign.campaign_id);
           if (idx >= 0) this.campaigns[idx] = { ...this.campaigns[idx], ...savedCampaign };
+          if (publish) this.currentCampaignId = savedCampaign.campaign_id;
           this.campaignSuccess = publish
             ? '发布成功：活动已保存、标记为已发布并设为前端当前活动。'
             : '保存成功！前端将读取最新配置。';
@@ -928,6 +954,7 @@ function adminApp() {
         const result = await response.json().catch(() => ({}));
 
         if (response.ok) {
+          this.currentCampaignId = this.editingCampaign.campaign_id;
           this.campaignSuccess = '已设为当前活动，前端首页会读取该活动。';
         } else {
           this.campaignError = result.message || '设置失败。';
