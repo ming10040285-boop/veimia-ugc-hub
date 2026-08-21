@@ -192,10 +192,24 @@ function adminApp() {
         if (!response.ok) throw new Error('current.json unavailable');
         const data = await response.json();
         this.currentCampaignId = String(data.campaign_id || '').trim();
+        return this.currentCampaignId;
       } catch (error) {
         console.error('Failed to load current campaign:', error);
         this.currentCampaignId = '';
+        return '';
       }
+    },
+
+    async verifyCurrentCampaign(expectedCampaignId) {
+      const expected = String(expectedCampaignId || '').trim();
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+        }
+        const actual = await this.loadCurrentCampaign();
+        if (actual === expected) return true;
+      }
+      return false;
     },
 
     /**
@@ -361,7 +375,7 @@ function adminApp() {
     refreshPreview() {
       const baseUrl = '/index.html';
       if (this.selectedCampaignId) {
-        this.previewUrl = `${baseUrl}?campaign=${this.selectedCampaignId}`;
+        this.previewUrl = `${baseUrl}?campaign=${encodeURIComponent(this.selectedCampaignId)}&preview=1`;
       } else {
         this.previewUrl = baseUrl;
       }
@@ -873,7 +887,14 @@ function adminApp() {
           this.editingCampaign = { ...this.editingCampaign, ...savedCampaign };
           const idx = this.campaigns.findIndex(c => c.campaign_id === savedCampaign.campaign_id);
           if (idx >= 0) this.campaigns[idx] = { ...this.campaigns[idx], ...savedCampaign };
-          if (publish) this.currentCampaignId = savedCampaign.campaign_id;
+          if (publish) {
+            const verified = await this.verifyCurrentCampaign(savedCampaign.campaign_id);
+            if (!verified) {
+              this.campaignError = `活动已发布，但前端当前活动核验失败。GitHub 当前仍指向 ${this.currentCampaignId || '未知活动'}，请刷新后重试切换。`;
+              this.refreshPreview();
+              return false;
+            }
+          }
           this.campaignSuccess = publish
             ? '发布成功：活动已保存、标记为已发布并设为前端当前活动。'
             : '保存成功！前端将读取最新配置。';
@@ -954,8 +975,13 @@ function adminApp() {
         const result = await response.json().catch(() => ({}));
 
         if (response.ok) {
-          this.currentCampaignId = this.editingCampaign.campaign_id;
-          this.campaignSuccess = '已设为当前活动，前端首页会读取该活动。';
+          const expectedCampaignId = this.editingCampaign.campaign_id;
+          const verified = await this.verifyCurrentCampaign(expectedCampaignId);
+          if (verified) {
+            this.campaignSuccess = '已设为当前活动，并已核验前端首页配置。';
+          } else {
+            this.campaignError = `切换请求已提交，但 GitHub 当前仍指向 ${this.currentCampaignId || '未知活动'}，后台不会错误标记为当前活动。请刷新后重试。`;
+          }
         } else {
           this.campaignError = result.message || '设置失败。';
         }

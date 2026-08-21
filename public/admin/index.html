@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VEIMIA UGC Hub Admin</title>
-  <link rel="stylesheet" href="css/admin.css?v=20260820-current-campaign">
-  <script src="js/admin.js?v=20260820-current-campaign"></script>
+  <link rel="stylesheet" href="css/admin.css?v=20260821-current-sync">
+  <script src="js/admin.js?v=20260821-current-sync"></script>
   <script src="js/alpine.min.js" defer></script>
 </head>
 <body x-data="adminApp()" x-init="init()">
@@ -111,8 +111,14 @@
         <template x-if="!editingCampaign">
           <div>
             <div class="content-header">
-              <h2>活动管理</h2>
-              <button class="btn btn-primary" @click="showCreateCampaign = true">+ 新建活动</button>
+              <div>
+                <h2>活动管理</h2>
+                <p class="campaign-current-summary" x-text="currentCampaignId ? '前端首页当前：' + ((campaigns.find(item => item.campaign_id === currentCampaignId) || {}).campaign_name || currentCampaignId) : '正在读取前端首页当前活动...'"></p>
+              </div>
+              <div class="form-actions" style="margin:0;">
+                <a class="btn" href="/index.html" target="_blank" rel="noopener">打开前端首页</a>
+                <button class="btn btn-primary" @click="showCreateCampaign = true">+ 新建活动</button>
+              </div>
             </div>
             <div class="content-body">
               <!-- Empty state -->
@@ -1574,8 +1580,14 @@
     <!-- Mobile Preview Panel -->
     <aside class="preview-panel">
       <div class="preview-header">
-        <h3>移动端预览</h3>
-        <button class="btn btn-sm" @click="refreshPreview()">刷新</button>
+        <div>
+          <h3>当前编辑活动预览</h3>
+          <span class="preview-context-hint">仅预览正在编辑的活动，不代表前端首页当前活动</span>
+        </div>
+        <div class="preview-header-actions">
+          <a class="btn btn-sm" href="/index.html" target="_blank" rel="noopener">打开前端首页</a>
+          <button class="btn btn-sm" @click="refreshPreview()">刷新预览</button>
+        </div>
       </div>
       <div class="preview-frame-container">
         <iframe
