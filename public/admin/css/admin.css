@@ -2,6 +2,11 @@
    VEIMIA UGC Hub Admin Panel - Stylesheet
    ============================================ */
 
+/* Keep Alpine-controlled content hidden until Alpine has initialized. */
+[x-cloak] {
+  display: none !important;
+}
+
 /* Reset & Base */
 *, *::before, *::after {
   box-sizing: border-box;

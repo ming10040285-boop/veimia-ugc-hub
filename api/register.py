@@ -6,6 +6,9 @@ import sys
 import time
 import threading
 import ctypes
+import urllib.error
+import urllib.parse
+import urllib.request
 from functools import wraps
 from datetime import datetime, timezone
 
@@ -74,7 +77,25 @@ class SheetsUnavailableError(Exception):
 
 
 def load_campaign_config(campaign_id):
-    """Load campaign configuration JSON by campaign_id."""
+    """Load the latest campaign config from GitHub, with deployed-file fallback."""
+    safe_id = urllib.parse.quote(str(campaign_id or ""), safe="")
+    raw_url = (
+        "https://raw.githubusercontent.com/ming10040285-boop/"
+        f"veimia-ugc-hub/main/public/config/campaigns/{safe_id}.json?t={int(time.time())}"
+    )
+    request = urllib.request.Request(raw_url)
+    request.add_header("Cache-Control", "no-cache")
+    request.add_header("User-Agent", "veimia-ugc-registration")
+    try:
+        with urllib.request.urlopen(request, timeout=3) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            return None
+        logger.warning("Latest Campaign config read failed: HTTP %s", error.code)
+    except Exception as error:
+        logger.warning("Latest Campaign config read failed: %s", error)
+
     config_dir = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "..",
@@ -112,8 +133,6 @@ def validate_registration(body):
     field_constraints = {
         "campaign_id": None,  # no max length constraint
         "product_id": None,
-        "selected_size": None,
-        "selected_color": None,
         "instagram_id": 200,
         "name": 100,
         "phone": 20,
@@ -187,16 +206,19 @@ def validate_size_color(body, config):
     if product is None:
         return ("INVALID_SIZE_COLOR", "선택한 사이즈 또는 컬러가 유효하지 않습니다.")
 
-    selected_size = body.get("selected_size")
-    selected_color = body.get("selected_color")
+    selected_size = body.get("selected_size", "")
+    selected_color = body.get("selected_color", "")
+
+    if not isinstance(selected_size, str) or not isinstance(selected_color, str):
+        return ("INVALID_SIZE_COLOR", "선택한 사이즈 또는 컬러가 유효하지 않습니다.")
 
     available_sizes = product.get("available_sizes", [])
     available_colors = product.get("available_colors", [])
 
-    if selected_size not in available_sizes:
+    if available_sizes and selected_size not in available_sizes:
         return ("INVALID_SIZE_COLOR", "선택한 사이즈 또는 컬러가 유효하지 않습니다.")
 
-    if selected_color not in available_colors:
+    if available_colors and selected_color not in available_colors:
         return ("INVALID_SIZE_COLOR", "선택한 사이즈 또는 컬러가 유효하지 않습니다.")
 
     return (None, None)

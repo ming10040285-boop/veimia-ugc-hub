@@ -13,6 +13,68 @@
 
   /** @type {Object|null} The loaded campaign configuration */
   var _campaignConfig = null;
+  var _frontendSettings = {};
+
+  function applyFrontendSettings(settings) {
+    if (!settings || typeof settings !== 'object') return;
+    _frontendSettings = settings;
+
+    var brandName = String(settings.brand_name || 'VEIMIA');
+    var brandText = document.querySelector('.site-header__logo-text');
+    if (brandText) brandText.textContent = brandName;
+    var copyright = document.querySelector('.site-footer__copyright');
+    if (copyright) copyright.textContent = '© ' + new Date().getFullYear() + ' ' + brandName + '. All rights reserved.';
+    document.title = brandName + ' UGC Brand Collaboration Hub';
+
+    if (isValidDisplayUrl(settings.brand_url)) {
+      var brandLinks = document.querySelectorAll('.site-header__logo-link, .site-header__nav-link, .site-footer__links a:first-child');
+      for (var i = 0; i < brandLinks.length; i++) brandLinks[i].href = settings.brand_url;
+    }
+
+    if (isValidDisplayUrl(settings.logo_url) && brandText) {
+      var logo = document.createElement('img');
+      logo.src = settings.logo_url;
+      logo.alt = brandName;
+      logo.style.maxHeight = '36px';
+      logo.style.maxWidth = '160px';
+      brandText.textContent = '';
+      brandText.appendChild(logo);
+    }
+
+    if (/^#[0-9a-fA-F]{6}$/.test(String(settings.brand_color || ''))) {
+      document.documentElement.style.setProperty('--color-accent', settings.brand_color);
+      document.documentElement.style.setProperty('--color-primary', settings.brand_color);
+      document.documentElement.style.setProperty('--color-primary-hover', settings.brand_color);
+    }
+
+    if (settings.contact_email) {
+      var footerLinks = document.querySelector('.site-footer__links');
+      if (footerLinks && !footerLinks.querySelector('.site-footer__contact')) {
+        var contact = document.createElement('a');
+        contact.className = 'site-footer__contact';
+        contact.href = 'mailto:' + settings.contact_email;
+        contact.textContent = settings.contact_email;
+        footerLinks.appendChild(contact);
+      }
+    }
+  }
+
+  function loadFrontendSettings() {
+    var rawUrl = 'https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/config/settings.json?t=' + Date.now();
+    return fetch(rawUrl, { cache: 'no-store' }).then(function (response) {
+      if (!response.ok) throw new Error('GitHub settings unavailable');
+      return response.json();
+    }).catch(function () {
+      return fetch('/config/settings.json?t=' + Date.now(), { cache: 'no-store' }).then(function (response) {
+        if (!response.ok) return {};
+        return response.json();
+      });
+    }).then(function (settings) {
+      applyFrontendSettings(settings);
+    }).catch(function () {
+      // The Campaign remains usable with built-in brand defaults.
+    });
+  }
 
   /**
    * Returns the currently loaded campaign configuration.
@@ -137,6 +199,12 @@
     container.setAttribute('data-product-mode', 'single');
     container.setAttribute('data-product-id', product.product_id);
 
+    if (product.status !== 'open') {
+      container.innerHTML = '<div class="multi-product__empty"><p class="multi-product__empty-message">' +
+        t('no_products_available') + '</p></div>';
+      return;
+    }
+
     // Truncate description at 200 characters
     var description = truncateText(product.short_description, 200);
 
@@ -183,26 +251,28 @@
     if (showDetailBtn) {
       html += '<a href="' + product.product_detail_url + '" target="_blank" rel="noopener noreferrer" class="btn btn--secondary single-product__detail-btn">' + t('product_detail_button') + '</a>';
     }
+    if (showSizeGuideBtn) {
+      html += '<a href="' + product.size_guide_url + '" target="_blank" rel="noopener noreferrer" class="btn btn--secondary single-product__size-guide-btn">' + (t('size_guide_button') || '사이즈 가이드') + '</a>';
+    }
     html += '</div>';
 
-    // Size and color prompt
-    html += '<p class="single-product__prompt">' + t('size_color_prompt') + '</p>';
+    // Render only the options that this product actually provides.
+    if (product.available_sizes && product.available_sizes.length > 0) {
+      html += '<p class="single-product__prompt">' + t('size_color_prompt') + '</p>';
+      html += '<div class="single-product__select-group">';
+      html += '<label for="size-select">' + t('size_label') + '</label>';
+      html += '<select id="size-select" class="single-product__select" name="selected_size">';
+      html += sizeOptions;
+      html += '</select></div>';
+    }
 
-    // Size selection
-    html += '<div class="single-product__select-group">';
-    html += '<label for="size-select">' + t('size_label') + '</label>';
-    html += '<select id="size-select" class="single-product__select" name="selected_size">';
-    html += sizeOptions;
-    html += '</select>';
-    html += '</div>';
-
-    // Color selection
-    html += '<div class="single-product__select-group">';
-    html += '<label for="color-select">' + t('color_label') + '</label>';
-    html += '<select id="color-select" class="single-product__select" name="selected_color">';
-    html += colorOptions;
-    html += '</select>';
-    html += '</div>';
+    if (product.available_colors && product.available_colors.length > 0) {
+      html += '<div class="single-product__select-group">';
+      html += '<label for="color-select">' + t('color_label') + '</label>';
+      html += '<select id="color-select" class="single-product__select" name="selected_color">';
+      html += colorOptions;
+      html += '</select></div>';
+    }
 
     html += '</div>';
 
@@ -248,21 +318,21 @@
     var html = '';
     html += '<p class="multi-product-options__prompt">' + t('size_color_prompt') + '</p>';
 
-    // Size selection
-    html += '<div class="multi-product-options__select-group">';
-    html += '<label for="size-select">' + t('size_label') + '</label>';
-    html += '<select id="size-select" class="multi-product-options__select" name="selected_size">';
-    html += sizeOptions;
-    html += '</select>';
-    html += '</div>';
+    if (product.available_sizes && product.available_sizes.length > 0) {
+      html += '<div class="multi-product-options__select-group">';
+      html += '<label for="size-select">' + t('size_label') + '</label>';
+      html += '<select id="size-select" class="multi-product-options__select" name="selected_size">';
+      html += sizeOptions;
+      html += '</select></div>';
+    }
 
-    // Color selection
-    html += '<div class="multi-product-options__select-group">';
-    html += '<label for="color-select">' + t('color_label') + '</label>';
-    html += '<select id="color-select" class="multi-product-options__select" name="selected_color">';
-    html += colorOptions;
-    html += '</select>';
-    html += '</div>';
+    if (product.available_colors && product.available_colors.length > 0) {
+      html += '<div class="multi-product-options__select-group">';
+      html += '<label for="color-select">' + t('color_label') + '</label>';
+      html += '<select id="color-select" class="multi-product-options__select" name="selected_color">';
+      html += colorOptions;
+      html += '</select></div>';
+    }
 
     optionsContainer.innerHTML = html;
     optionsContainer.style.display = '';
@@ -374,10 +444,14 @@
     }
     html += '</div>';
 
-    // External link (if product_detail_url is configured)
-    if (isValidDisplayUrl(product.product_detail_url)) {
+    if (isValidDisplayUrl(product.product_detail_url) || isValidDisplayUrl(product.size_guide_url)) {
       html += '<div class="product-detail-modal__external">';
-      html += '<a href="' + product.product_detail_url + '" target="_blank" rel="noopener noreferrer" class="btn btn--secondary product-detail-modal__external-link">' + t('product_detail_external_link') + '</a>';
+      if (isValidDisplayUrl(product.product_detail_url)) {
+        html += '<a href="' + product.product_detail_url + '" target="_blank" rel="noopener noreferrer" class="btn btn--secondary product-detail-modal__external-link">' + t('product_detail_external_link') + '</a>';
+      }
+      if (isValidDisplayUrl(product.size_guide_url)) {
+        html += '<a href="' + product.size_guide_url + '" target="_blank" rel="noopener noreferrer" class="btn btn--secondary product-detail-modal__external-link">' + t('size_guide_button') + '</a>';
+      }
       html += '</div>';
     }
 
@@ -401,6 +475,7 @@
         modalNode.parentNode.removeChild(modalNode);
       }
       document.body.style.overflow = '';
+      document.removeEventListener('keydown', handleEscape);
     }
 
     // Click to close (overlay and close button)
@@ -605,8 +680,18 @@
     // Submit button
     html += '<button type="submit" class="btn btn--primary registration-form__submit">' + t('submit_button') + '</button>';
 
-    // Consent notice
-    html += '<p class="consent-notice" style="text-align:center;font-size:0.8rem;color:#888;margin-top:12px;">이벤트에 참여하시는 경우, 베이미아의 브랜드 홍보 및 마케팅 활동을 위한 콘텐츠 활용에 동의하신 것으로 간주됩니다.</p>';
+    // Consent notice, managed from Admin settings when configured.
+    var consentParts = [
+      _frontendSettings.consent_purpose,
+      _frontendSettings.consent_data_types,
+      _frontendSettings.consent_retention,
+      _frontendSettings.consent_withdrawal
+    ].filter(function (value) { return String(value || '').trim(); });
+    var consentText = consentParts.length
+      ? consentParts.join(' ')
+      : '이벤트에 참여하시는 경우, 베이미아의 브랜드 홍보 및 마케팅 활동을 위한 콘텐츠 활용에 동의하신 것으로 간주됩니다.';
+    consentText = consentText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    html += '<p class="consent-notice" style="text-align:center;font-size:0.8rem;color:#888;margin-top:12px;">' + consentText + '</p>';
 
     // Hidden fields
     html += '<input type="hidden" id="field-consent" name="consent" value="true">';
@@ -705,12 +790,12 @@
     var selectedSize = sizeSelect ? sizeSelect.value : '';
     var selectedColor = colorSelect ? colorSelect.value : '';
 
-    if (!selectedSize) {
-      if (sizeSelect) sizeSelect.classList.add('field-error');
+    if (sizeSelect && !selectedSize) {
+      sizeSelect.classList.add('field-error');
       isValid = false;
     }
-    if (!selectedColor) {
-      if (colorSelect) colorSelect.classList.add('field-error');
+    if (colorSelect && !selectedColor) {
+      colorSelect.classList.add('field-error');
       isValid = false;
     }
 
@@ -1205,6 +1290,11 @@
    */
   function renderProducts(config) {
     if (!config.products || config.products.length === 0) {
+      var emptyContainer = document.getElementById('product-container');
+      if (emptyContainer) {
+        emptyContainer.innerHTML = '<div class="multi-product__empty"><p class="multi-product__empty-message">' +
+          t('no_products_available') + '</p></div>';
+      }
       return;
     }
 
@@ -1219,6 +1309,14 @@
     } else if (config.product_mode === 'multiple') {
       renderMultipleProducts(resolvedProducts);
     }
+  }
+
+  function hasAvailableProducts(config) {
+    var products = config.products || [];
+    if (config.product_mode === 'single') {
+      return products.length > 0 && products[0].status === 'open';
+    }
+    return products.some(function (product) { return product.status === 'open'; });
   }
 
   /**
@@ -1321,10 +1419,12 @@
 
         // Check campaign time limit before rendering form
         var timeCheck = checkCampaignTimeLimit(config);
-        if (timeCheck.active) {
-          renderForm(config);
-        } else {
+        if (!timeCheck.active) {
           renderCampaignInactive(timeCheck.message);
+        } else if (!hasAvailableProducts(config)) {
+          renderCampaignInactive(t('no_products_available'));
+        } else {
+          renderForm(config);
         }
 
         renderUGCGallery(config.ugc_gallery);
@@ -1396,11 +1496,15 @@
     showSizeGuidePopup: showSizeGuidePopup
   };
 
+  function startCampaignPage() {
+    loadFrontendSettings().then(initCampaignPage);
+  }
+
   // Initialize on DOM ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initCampaignPage);
+    document.addEventListener('DOMContentLoaded', startCampaignPage);
   } else {
-    initCampaignPage();
+    startCampaignPage();
   }
 
 })(typeof window !== 'undefined' ? window : this);

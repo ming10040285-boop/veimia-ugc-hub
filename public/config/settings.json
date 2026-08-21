@@ -1,0 +1,15 @@
+{
+  "brand_name": "VEIMIA",
+  "brand_url": "https://veimia.co.kr/",
+  "logo_url": "",
+  "brand_color": "#d4a574",
+  "contact_email": "",
+  "consent_purpose": "",
+  "consent_data_types": "",
+  "consent_retention": "",
+  "consent_withdrawal": "",
+  "version": "1.0.0",
+  "deploy_url": "https://veimia-ugc-hub.vercel.app",
+  "sheets_connected": false,
+  "sheets_id": ""
+}

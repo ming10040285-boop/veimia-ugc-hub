@@ -24,7 +24,7 @@ GITHUB_REPO = "veimia-ugc-hub"
 GITHUB_BRANCH = "main"
 GITHUB_REPO_API = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}"
 GITHUB_API_BASE = f"{GITHUB_REPO_API}/contents"
-CAMPAIGN_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
+CAMPAIGN_ID_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,48}[a-z0-9])?$")
 
 
 def _get_token():
@@ -82,6 +82,106 @@ def _github_request(api_path, token, method="GET", payload=None):
     with urlopen(request, timeout=12) as response:
         raw = response.read().decode("utf-8")
         return json.loads(raw) if raw else {}
+
+
+def _read_repo_json(path, token, default=None):
+    """Read a JSON file from the configured GitHub branch."""
+    try:
+        data = _github_request(f"/contents/{path}?ref={GITHUB_BRANCH}", token)
+        encoded = str(data.get("content") or "").replace("\n", "")
+        if not encoded:
+            return default
+        return json.loads(base64.b64decode(encoded).decode("utf-8"))
+    except HTTPError as error:
+        if error.code == 404:
+            return default
+        raise
+
+
+def _commit_tree_changes(token, message, changes):
+    """Commit multiple repository file changes with one branch update."""
+    branch_ref = _github_request(f"/git/ref/heads/{GITHUB_BRANCH}", token)
+    parent_sha = branch_ref["object"]["sha"]
+    parent_commit = _github_request(f"/git/commits/{parent_sha}", token)
+    tree = _github_request("/git/trees", token, "POST", {
+        "base_tree": parent_commit["tree"]["sha"],
+        "tree": changes,
+    })
+    commit = _github_request("/git/commits", token, "POST", {
+        "message": message,
+        "tree": tree["sha"],
+        "parents": [parent_sha],
+    })
+    _github_request(f"/git/refs/heads/{GITHUB_BRANCH}", token, "PATCH", {
+        "sha": commit["sha"], "force": False
+    })
+    return commit["sha"]
+
+
+def _json_blob_change(path, content, token):
+    text = json.dumps(content, ensure_ascii=False, indent=2) + "\n"
+    blob = _github_request("/git/blobs", token, "POST", {
+        "content": text, "encoding": "utf-8"
+    })
+    return {"path": path, "mode": "100644", "type": "blob", "sha": blob["sha"]}
+
+
+def _create_campaign_atomic(campaign_input, token):
+    """Create a Campaign and update the Campaign index in one commit."""
+    if not isinstance(campaign_input, dict):
+        raise ValueError("缺少完整的 Campaign 数据")
+    campaign_id = str(campaign_input.get("campaign_id") or "").strip()
+    if not CAMPAIGN_ID_PATTERN.fullmatch(campaign_id):
+        raise ValueError("活动 ID 只能使用小写英文、数字和连字符，长度 1-50，且首尾不能是连字符")
+    if _get_file_sha(f"public/config/campaigns/{campaign_id}.json", token):
+        raise ValueError("该活动 ID 已存在，请更换一个 ID")
+    if not str(campaign_input.get("campaign_name") or "").strip():
+        raise ValueError("请输入活动名称")
+    if campaign_input.get("product_mode") not in ("single", "multiple"):
+        raise ValueError("请选择正确的商品模式")
+
+    campaign = dict(campaign_input)
+    campaign["campaign_id"] = campaign_id
+    campaign["status"] = "draft"
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    campaign.setdefault("created_at", now)
+    campaign["updated_at"] = now
+    campaign.setdefault("products", [])
+    campaign.setdefault("ugc_gallery", [])
+
+    index = _read_repo_json("public/config/campaigns/index.json", token, [])
+    if not isinstance(index, list):
+        index = []
+    index = [str(item) for item in index if str(item) != campaign_id]
+    index.append(campaign_id)
+    commit_sha = _commit_tree_changes(token, f"Admin: create {campaign_id}", [
+        _json_blob_change(f"public/config/campaigns/{campaign_id}.json", campaign, token),
+        _json_blob_change("public/config/campaigns/index.json", index, token),
+    ])
+    return campaign, commit_sha
+
+
+def _delete_campaign_atomic(campaign_id, token):
+    """Delete a Campaign and remove it from the index in one commit."""
+    campaign_id = str(campaign_id or "").strip()
+    if not CAMPAIGN_ID_PATTERN.fullmatch(campaign_id):
+        raise ValueError("Campaign ID 无效")
+    path = f"public/config/campaigns/{campaign_id}.json"
+    if not _get_file_sha(path, token):
+        raise ValueError("活动不存在或已经删除")
+    current = _read_repo_json("public/config/current.json", token, {})
+    if isinstance(current, dict) and current.get("campaign_id") == campaign_id:
+        raise ValueError("当前前端正在展示这个活动，请先切换到其他活动后再删除")
+
+    index = _read_repo_json("public/config/campaigns/index.json", token, [])
+    if not isinstance(index, list):
+        index = []
+    index = [str(item) for item in index if str(item) != campaign_id]
+    commit_sha = _commit_tree_changes(token, f"Admin: delete {campaign_id}", [
+        {"path": path, "mode": "100644", "type": "blob", "sha": None},
+        _json_blob_change("public/config/campaigns/index.json", index, token),
+    ])
+    return commit_sha
 
 
 def _publish_campaign_atomic(campaign_input, token):
@@ -162,20 +262,27 @@ class handler(BaseHTTPRequestHandler):
             return
         
         action = str(body.get("action") or "").strip()
-        if action == "publish":
+        if action in ("create", "publish", "delete"):
             try:
-                campaign, commit_sha = _publish_campaign_atomic(body.get("campaign"), token)
-                self._send(200, {
-                    "status": "success",
-                    "message": "活动已发布并设为当前活动。",
-                    "data": {"campaign": campaign, "commit_sha": commit_sha},
-                })
+                if action == "create":
+                    campaign, commit_sha = _create_campaign_atomic(body.get("campaign"), token)
+                    message = "活动已创建并保存。"
+                    data = {"campaign": campaign, "commit_sha": commit_sha}
+                elif action == "publish":
+                    campaign, commit_sha = _publish_campaign_atomic(body.get("campaign"), token)
+                    message = "活动已发布并设为当前活动。"
+                    data = {"campaign": campaign, "commit_sha": commit_sha}
+                else:
+                    commit_sha = _delete_campaign_atomic(body.get("campaign_id"), token)
+                    message = "活动已删除。"
+                    data = {"campaign_id": body.get("campaign_id"), "commit_sha": commit_sha}
+                self._send(200, {"status": "success", "message": message, "data": data})
             except ValueError as error:
                 self._send(400, {"status": "error", "message": str(error)})
             except HTTPError as error:
                 self._send(502, {"status": "error", "message": _github_error_message(error)})
             except Exception:
-                self._send(500, {"status": "error", "message": "发布失败，请稍后重试。"})
+                self._send(500, {"status": "error", "message": "操作失败，请稍后重试。"})
             return
         if action:
             self._send(400, {"status": "error", "message": "Unsupported save action"})

@@ -119,7 +119,7 @@ function adminApp() {
     async init() {
       this.statusMessage = '加载中...';
       try {
-        this.loadSettings();
+        await this.loadSettings();
         await this.loadCampaigns();
         await this.loadCurrentCampaign();
         await this.loadProducts();
@@ -135,44 +135,37 @@ function adminApp() {
      * Tries API first, falls back to loading known campaign configs directly.
      */
     async loadCampaigns() {
-      // Try API first
+      // GitHub is the source of truth used by the public page. Reading the same
+      // source here prevents stale Vercel files from showing phantom Campaigns.
+      const rawBase = 'https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/config/campaigns/';
       try {
-        const response = await fetch('/api/admin/campaigns');
-        if (response.ok) {
-          const data = await response.json();
-          const apiCampaigns = data.campaigns || data.data;
-          if (Array.isArray(apiCampaigns) && apiCampaigns.length > 0) {
-            this.campaigns = apiCampaigns;
-            return;
-          }
-        }
-      } catch (e) {}
-
-      // Fallback: load campaign index file
-      let knownIds = [];
-      try {
-        const indexResp = await fetch('/config/campaigns/index.json?t=' + Date.now());
-        if (indexResp.ok) {
-          knownIds = await indexResp.json();
-        }
-      } catch (e) {}
-
-      // If no index, try common IDs
-      if (knownIds.length === 0) {
-        knownIds = ['demo', 'UGC-4'];
+        const indexResponse = await fetch(rawBase + 'index.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!indexResponse.ok) throw new Error('Campaign index unavailable');
+        const ids = await indexResponse.json();
+        if (!Array.isArray(ids)) throw new Error('Campaign index format is invalid');
+        const results = await Promise.all(ids.map(async id => {
+          const response = await fetch(rawBase + encodeURIComponent(id) + '.json?t=' + Date.now(), { cache: 'no-store' });
+          if (!response.ok) return null;
+          return response.json();
+        }));
+        this.campaigns = results.filter(campaign => campaign && campaign.campaign_id);
+        return;
+      } catch (error) {
+        console.warn('GitHub Campaign list unavailable, using deployed API:', error);
       }
 
-      const campaigns = [];
-      for (const id of knownIds) {
-        try {
-          const resp = await fetch('/config/campaigns/' + id + '.json?t=' + Date.now());
-          if (resp.ok) {
-            const data = await resp.json();
-            campaigns.push(data);
-          }
-        } catch (e) {}
+      try {
+        const response = await fetch('/api/admin/campaigns?t=' + Date.now(), { cache: 'no-store' });
+        if (!response.ok) throw new Error('Campaign API returned HTTP ' + response.status);
+        const data = await response.json();
+        const apiCampaigns = data.campaigns || data.data;
+        if (!Array.isArray(apiCampaigns)) throw new Error('Campaign API format is invalid');
+        this.campaigns = apiCampaigns;
+      } catch (error) {
+        console.error('Failed to load Campaigns:', error);
+        this.campaigns = [];
+        this.statusMessage = '活动列表加载失败，请刷新重试';
       }
-      this.campaigns = campaigns;
     },
 
     /**
@@ -428,8 +421,8 @@ function adminApp() {
      */
     async createCampaign() {
       this.createCampaignError = '';
+      const campaignId = this.newCampaign.campaign_id.trim() || ('campaign-' + Date.now());
 
-      // Validate required fields
       if (!this.newCampaign.campaign_name.trim()) {
         this.createCampaignError = '请输入活动名称。';
         return;
@@ -438,9 +431,30 @@ function adminApp() {
         this.createCampaignError = '请选择商品模式。';
         return;
       }
+      if (!['ko', 'ja', 'en'].includes(this.newCampaign.market.trim() || 'ko')) {
+        this.createCampaignError = '请选择有效市场。';
+        return;
+      }
+      if (!/^[a-z0-9](?:[a-z0-9-]{0,48}[a-z0-9])?$/.test(campaignId)) {
+        this.createCampaignError = '活动 ID 只能使用小写英文、数字和连字符，长度 1-50，且首尾不能是连字符。';
+        return;
+      }
+      if (this.campaigns.some(campaign => campaign.campaign_id === campaignId)) {
+        this.createCampaignError = '该活动 ID 已存在，请更换一个 ID。';
+        return;
+      }
 
-      // Build complete campaign object locally
-      const campaignId = this.newCampaign.campaign_id.trim() || ('campaign-' + Date.now());
+      const startDate = this.newCampaign.start_date_local ? new Date(this.newCampaign.start_date_local) : null;
+      const endDate = this.newCampaign.end_date_local ? new Date(this.newCampaign.end_date_local) : null;
+      if ((startDate && Number.isNaN(startDate.getTime())) || (endDate && Number.isNaN(endDate.getTime()))) {
+        this.createCampaignError = '活动时间格式不正确。';
+        return;
+      }
+      if (startDate && endDate && startDate >= endDate) {
+        this.createCampaignError = '活动结束时间必须晚于开始时间。';
+        return;
+      }
+
       const registrationStorage = this.buildRegistrationStorage(
         this.newCampaign.google_sheet,
         this.newCampaign.worksheet_name
@@ -450,6 +464,7 @@ function adminApp() {
         return;
       }
 
+      const now = new Date().toISOString();
       const campaignData = {
         campaign_id: campaignId,
         campaign_name: this.newCampaign.campaign_name.trim(),
@@ -458,74 +473,39 @@ function adminApp() {
         hero_image_url: this.newCampaign.hero_image_url || '',
         introduction_text: this.newCampaign.introduction_text.trim() || '',
         status: 'draft',
-        start_date: this.newCampaign.start_date_local ? new Date(this.newCampaign.start_date_local).toISOString() : null,
-        end_date: this.newCampaign.end_date_local ? new Date(this.newCampaign.end_date_local).toISOString() : null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        start_date: startDate ? startDate.toISOString() : null,
+        end_date: endDate ? endDate.toISOString() : null,
+        created_at: now,
+        updated_at: now,
         products: [],
         ugc_gallery: [],
         ...(registrationStorage ? { registration_storage: registrationStorage } : {})
       };
 
-      // Add to local list immediately (works without API)
-      this.campaigns.push(campaignData);
-
-      // Reset form and close modal
-      this.newCampaign = {
-        campaign_id: '',
-        campaign_name: '',
-        product_mode: '',
-        market: 'ko',
-        hero_image_url: '',
-        introduction_text: '',
-        start_date_local: '',
-        end_date_local: '',
-        google_sheet: '',
-        worksheet_name: 'Sheet1'
-      };
-      this.showCreateCampaign = false;
-
-      this.statusMessage = '活动创建成功！';
-
-      // Save campaign JSON to GitHub
+      this.campaignActionLoading = true;
       try {
-        await fetch('/api/admin/save', {
+        const response = await fetch('/api/admin/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            path: 'public/config/campaigns/' + campaignId + '.json',
-            content: campaignData
-          })
+          body: JSON.stringify({ action: 'create', campaign: campaignData })
         });
-      } catch (e) {}
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.message || '活动创建失败。');
 
-      // Update campaign index
-      try {
-        const allIds = this.campaigns.map(c => c.campaign_id);
-        await fetch('/api/admin/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            path: 'public/config/campaigns/index.json',
-            content: allIds
-          })
-        });
-      } catch (e) {}
-
-      // Also try API in background (best-effort, don't block)
-      try {
-        const apiPayload = { ...campaignData };
-        delete apiPayload.products;
-        delete apiPayload.ugc_gallery;
-        if (apiPayload.hero_image_url && apiPayload.hero_image_url.startsWith('data:')) {
-          apiPayload.hero_image_url = '';
-        }
-        fetch('/api/admin/campaigns', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(apiPayload)
-        }).catch(() => {});
-      } catch (e) {}
+        const savedCampaign = result.data?.campaign || campaignData;
+        this.campaigns.push(savedCampaign);
+        this.newCampaign = {
+          campaign_id: '', campaign_name: '', product_mode: '', market: 'ko',
+          hero_image_url: '', introduction_text: '', start_date_local: '',
+          end_date_local: '', google_sheet: '', worksheet_name: 'Sheet1'
+        };
+        this.showCreateCampaign = false;
+        this.statusMessage = '活动创建成功并已保存';
+      } catch (error) {
+        this.createCampaignError = error.message || '活动创建失败，请重试。';
+      } finally {
+        this.campaignActionLoading = false;
+      }
     },
 
     /**
@@ -800,6 +780,10 @@ function adminApp() {
         this.campaignError = '请至少分配 1 个商品。';
         return false;
       }
+      if (!this.editingCampaign || !['ko', 'ja', 'en'].includes(this.editingCampaign.market)) {
+        this.campaignError = '请选择有效市场。';
+        return false;
+      }
 
       const storageInput = this.editingCampaign.registration_storage || {};
       const registrationStorage = this.buildRegistrationStorage(
@@ -808,8 +792,21 @@ function adminApp() {
       );
       if (String(storageInput.spreadsheet_id || '').trim() && !registrationStorage) {
         this.campaignError = 'Google Sheet 链接或 ID 格式不正确。';
-        return;
+        return false;
       }
+
+      const startDate = this.editingCampaign.start_date_local ? new Date(this.editingCampaign.start_date_local) : null;
+      const endDate = this.editingCampaign.end_date_local ? new Date(this.editingCampaign.end_date_local) : null;
+      if ((startDate && Number.isNaN(startDate.getTime())) || (endDate && Number.isNaN(endDate.getTime()))) {
+        this.campaignError = '活动时间格式不正确。';
+        return false;
+      }
+      if (startDate && endDate && startDate >= endDate) {
+        this.campaignError = '活动结束时间必须晚于开始时间。';
+        return false;
+      }
+      this.editingCampaign.start_date = startDate ? startDate.toISOString() : null;
+      this.editingCampaign.end_date = endDate ? endDate.toISOString() : null;
 
       const rawScreening = this.editingCampaign.candidate_screening || {};
       const normalizeOptionalInteger = (value) => {
@@ -997,20 +994,23 @@ function adminApp() {
      * @param {string} campaignId
      */
     async deleteCampaign(campaignId) {
-      if (!confirm('确定删除该活动吗？')) return;
+      if (!confirm('确定永久删除该活动吗？此操作会同步删除线上活动配置。')) return;
 
+      this.campaignError = '';
+      this.statusMessage = '正在删除活动...';
       try {
-        const response = await fetch(`/api/admin/campaigns/${campaignId}`, {
-          method: 'DELETE'
+        const response = await fetch('/api/admin/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete', campaign_id: campaignId })
         });
-
-        if (response.ok) {
-          await this.loadCampaigns();
-        } else {
-          console.error('Failed to delete campaign');
-        }
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.message || '删除活动失败。');
+        this.campaigns = this.campaigns.filter(campaign => campaign.campaign_id !== campaignId);
+        this.statusMessage = '活动已永久删除';
       } catch (error) {
-        console.error('Delete campaign error:', error);
+        this.statusMessage = '删除失败：' + (error.message || '请稍后重试');
+        alert(this.statusMessage);
       }
     },
 
@@ -1322,17 +1322,8 @@ function adminApp() {
         available_colors: this.productForm.available_colors
       };
 
-      // Save locally (works without API)
-      if (this.productForm.isEditing) {
-        const idx = this.products.findIndex(p => p.product_id === this.productForm.product_id);
-        if (idx >= 0) this.products[idx] = payload;
-      } else {
-        this.products.push(payload);
-      }
-
-      this.productFormSuccess = this.productForm.isEditing ? '商品已修改。' : '商品已添加。';
-
-      // Save to API (persistent GitHub storage)
+      // Persist first; only update the visible list after the server confirms success.
+      let savedProduct = payload;
       try {
         const apiPayload = { ...payload };
         const method = this.productForm.isEditing ? 'PUT' : 'POST';
@@ -1341,18 +1332,26 @@ function adminApp() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(apiPayload)
         });
+        const result = await response.json().catch(() => ({}));
         if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
           this.productFormSuccess = '';
-          this.productFormErrors = { ...this.productFormErrors, general: err.message || '保存失败。' };
+          this.productFormErrors = { ...this.productFormErrors, general: result.message || '保存失败。' };
           return;
         }
+        savedProduct = result.data || payload;
       } catch (e) {
         this.productFormSuccess = '';
         this.productFormErrors = { ...this.productFormErrors, general: '网络错误: ' + e.message };
         return;
       }
 
+      if (this.productForm.isEditing) {
+        const idx = this.products.findIndex(p => p.product_id === this.productForm.product_id);
+        if (idx >= 0) this.products[idx] = savedProduct;
+      } else {
+        this.products.push(savedProduct);
+      }
+      this.productFormSuccess = this.productForm.isEditing ? '商品已修改并保存。' : '商品已添加并保存。';
       setTimeout(() => { this.closeProductModal(); }, 1000);
     },
 
@@ -1490,9 +1489,7 @@ function adminApp() {
     },
 
     /**
-     * Add a UGC post to the local list.
-     * Works without backend API — adds to in-memory array.
-     * Use "Export JSON" to save changes to file.
+     * Validate and persist a new UGC post before keeping it in the visible list.
      */
     async addUGCPost() {
       this.ugcFormError = '';
@@ -1526,7 +1523,7 @@ function adminApp() {
         return;
       }
 
-      // Add to local array (no API call)
+      const previousPosts = [...this.ugcPosts];
       const newPost = {
         post_id: 'ugc-' + Date.now(),
         image_url: imageUrl,
@@ -1535,11 +1532,16 @@ function adminApp() {
       };
 
       this.ugcPosts.push(newPost);
+      this.ugcSuccess = '正在保存 UGC 帖子...';
+      const saved = await this._saveUGCToGitHub();
+      if (!saved) {
+        this.ugcPosts = previousPosts;
+        this.ugcSuccess = '';
+        this.ugcFormError = this.ugcError || 'UGC 保存失败，请重试。';
+        return;
+      }
       this.newUGCPost = { source_url: '', image_url: '' };
       this.showAddUGC = false;
-      this.ugcSuccess = 'UGC 帖子已添加，保存中...';
-      // Save to GitHub
-      await this._saveUGCToGitHub();
     },
 
     /**
@@ -1552,15 +1554,14 @@ function adminApp() {
       this.ugcError = '';
       this.ugcSuccess = '';
 
-      // Remove from local array (no API call)
+      const previousPosts = [...this.ugcPosts];
       this.ugcPosts = this.ugcPosts.filter(p => (p.post_id || p.id) !== postId);
-      
-      // Update display_order
       this.ugcPosts.forEach((p, i) => { p.display_order = i + 1; });
-      
-      this.ugcSuccess = 'UGC 帖子已删除，保存中...';
-      // Save to GitHub
-      await this._saveUGCToGitHub();
+      this.ugcSuccess = '正在删除并保存...';
+      if (!await this._saveUGCToGitHub()) {
+        this.ugcPosts = previousPosts;
+        this.ugcSuccess = '';
+      }
     },
 
     /**
@@ -1568,25 +1569,28 @@ function adminApp() {
      */
     async reorderUGCPosts() {
       this.ugcError = '';
-      this.ugcSuccess = '';
-      // Update display_order in local array
+      this.ugcSuccess = '正在保存排序...';
       this.ugcPosts.forEach((p, i) => { p.display_order = i + 1; });
-      // Save to GitHub via save API
-      await this._saveUGCToGitHub();
+      if (!await this._saveUGCToGitHub()) {
+        const message = this.ugcError || '排序保存失败。';
+        await this.loadUGCForCampaign();
+        this.ugcError = message;
+        this.ugcSuccess = '';
+      }
     },
 
     /**
      * Save current UGC posts to GitHub (updates the campaign's ugc_gallery in demo.json)
      */
     async _saveUGCToGitHub() {
-      if (!this.ugcSelectedCampaignId) return;
+      if (!this.ugcSelectedCampaignId) return false;
       
       try {
         // Load the full campaign from read_campaign API (no cache)
         const resp = await fetch(`/api/admin/read_campaign?id=${this.ugcSelectedCampaignId}`);
         if (!resp.ok) {
           this.ugcError = '无法加载活动数据。';
-          return;
+          return false;
         }
         const campaignData = await resp.json();
         
@@ -1609,13 +1613,15 @@ function adminApp() {
         });
         
         if (saveResp.ok) {
-          this.ugcSuccess = 'UGC 画廊已保存，约 30 秒后前端页面将更新。';
-        } else {
-          const err = await saveResp.json().catch(() => ({}));
-          this.ugcError = err.message || 'UGC 保存失败。';
+          this.ugcSuccess = 'UGC 画廊已保存，前端将读取最新内容。';
+          return true;
         }
+        const err = await saveResp.json().catch(() => ({}));
+        this.ugcError = err.message || 'UGC 保存失败。';
+        return false;
       } catch (e) {
         this.ugcError = '网络错误: ' + e.message;
+        return false;
       }
     },
 
@@ -1685,33 +1691,69 @@ function adminApp() {
       sheets_id: ''
     },
     settingsSuccess: '',
+    settingsError: '',
+    settingsLoading: false,
 
     /**
-     * Load settings from localStorage (persists across sessions in same browser)
+     * Load shared settings from the same GitHub source used by the public page.
      */
-    loadSettings() {
+    async loadSettings() {
+      const rawUrl = 'https://raw.githubusercontent.com/ming10040285-boop/veimia-ugc-hub/main/public/config/settings.json?t=' + Date.now();
       try {
-        const saved = localStorage.getItem('veimia_ugc_settings');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          this.settings = { ...this.settings, ...parsed };
-        }
-      } catch (e) {
-        console.error('Failed to load settings:', e);
+        let response = await fetch(rawUrl, { cache: 'no-store' });
+        if (!response.ok) response = await fetch('/config/settings.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!response.ok) throw new Error('设置文件不可用');
+        const saved = await response.json();
+        this.settings = { ...this.settings, ...saved };
+      } catch (error) {
+        // Keep defaults if this is the first deployment without settings.json.
+        console.warn('Failed to load shared settings:', error);
       }
     },
 
     /**
-     * Save settings to localStorage
+     * Save settings to GitHub so the public page uses them too.
      */
-    saveSettings() {
+    async saveSettings() {
       this.settingsSuccess = '';
+      this.settingsError = '';
+      const brandUrl = String(this.settings.brand_url || '').trim();
+      const logoUrl = String(this.settings.logo_url || '').trim();
+      const email = String(this.settings.contact_email || '').trim();
+      if (brandUrl && !this.isValidUrl(brandUrl)) {
+        this.settingsError = '品牌网站必须是有效的 HTTPS URL。';
+        return;
+      }
+      if (logoUrl && !logoUrl.startsWith('data:image/') && !this.isValidUrl(logoUrl)) {
+        this.settingsError = 'Logo 必须是有效的 HTTPS URL，或使用上传按钮选择图片。';
+        return;
+      }
+      if (!/^#[0-9a-fA-F]{6}$/.test(String(this.settings.brand_color || ''))) {
+        this.settingsError = '品牌主色调必须是 6 位十六进制颜色，例如 #d4a574。';
+        return;
+      }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        this.settingsError = '客服邮箱格式不正确。';
+        return;
+      }
+      this.settings.brand_url = brandUrl;
+      this.settings.logo_url = logoUrl;
+      this.settings.contact_email = email;
+      this.settingsLoading = true;
       try {
+        const response = await fetch('/api/admin/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'public/config/settings.json', content: this.settings })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.message || '设置保存失败。');
         localStorage.setItem('veimia_ugc_settings', JSON.stringify(this.settings));
-        this.settingsSuccess = '设置已保存。';
-        setTimeout(() => { this.settingsSuccess = ''; }, 3000);
-      } catch (e) {
-        console.error('Failed to save settings:', e);
+        this.settingsSuccess = '设置已保存并同步到前端。';
+      } catch (error) {
+        this.settingsError = error.message || '设置保存失败，请重试。';
+      } finally {
+        this.settingsLoading = false;
       }
     },
 
@@ -1724,13 +1766,25 @@ function adminApp() {
       const file = event.target.files[0];
       if (!file) return;
 
+      this.settingsError = '';
       const validTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
-      if (!validTypes.includes(file.type)) return;
-      if (file.size > 2 * 1024 * 1024) return;
+      if (!validTypes.includes(file.type)) {
+        this.settingsError = 'Logo 仅支持 PNG、JPG、WebP 或 SVG。';
+        event.target.value = '';
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        this.settingsError = 'Logo 文件不能超过 2MB。';
+        event.target.value = '';
+        return;
+      }
 
       const reader = new FileReader();
       reader.onload = (e) => {
         this.settings[field] = e.target.result;
+      };
+      reader.onerror = () => {
+        this.settingsError = 'Logo 文件读取失败。';
       };
       reader.readAsDataURL(file);
       event.target.value = '';
